@@ -43,13 +43,24 @@ template <typename T>
 void axpy(const int N, const T alpha, const T *X,
           const int incX, T *Y, const int incY)
 {
+    // check arguments
+    if (N <= 0) return;
+    if (alpha == T()) return;
+
 	concurrency::array_view<T> avX = get_array_view(X, N);
 	concurrency::array_view<T> avY = get_array_view(Y, N);
 
-	auto avX1 = make_stride_view(avX, incX, make_extent(N));
-	auto avY1 = make_stride_view(avY, incY, make_extent(N));
+	if (incX == 1 && incY == 1)
+	{
+		ampblas::axpy(make_extent(N), alpha, avX, avY);
+	}
+	else
+	{
+		auto avX1 = make_stride_view(avX, incX, make_extent(N));
+		auto avY1 = make_stride_view(avY, incY, make_extent(N));
     
-	ampblas::axpy(make_extent(N), alpha, avX1, avY1);
+		ampblas::axpy(make_extent(N), alpha, avX1, avY1);
+	}
 }
 
 } // namespace ampblas

@@ -69,13 +69,18 @@ const char *ampblas_exception::what() const throw()
 namespace _details 
 {
 class amp_buffer;
+class thread_context;
 
 namespace 
 {
 concurrency::critical_section g_allocations_cs;
 std::map<const void*, amp_buffer*> g_allocations;
-std::unique_ptr<concurrency::accelerator_view> g_curr_accelerator_view; 
+// The thread-local-storage here is the __declspec(thread) method supported by 
+// Microsoft Visual Studio, but any other thread-local-storage method supported
+// by your development environment may be substituted.
+__declspec(thread) thread_context *g_thread_context = nullptr;
 }
+
 #define PTR_U64(ptr)      reinterpret_cast<uint64_t>(ptr)
 
 //----------------------------------------------------------------------------
@@ -86,71 +91,88 @@ std::unique_ptr<concurrency::accelerator_view> g_curr_accelerator_view;
 class amp_buffer
 {
 public:
-	amp_buffer(void *buffer_ptr, size_t buffer_byte_len)
+	amp_buffer(void *buffer_ptr, size_t byte_len)
 		:mem_base(reinterpret_cast<int32_t*>(buffer_ptr)), 
-		 byte_len(buffer_byte_len),
-         // buffer_byte_len has been asserted to be multiple of int32_t size, and the buffer_byte_len/sizeof(int32_t)
+		 byte_length(byte_len),
+         // byte_len has been asserted to be multiple of int32_t size, and the byte_len/sizeof(int32_t)
          // is no greater than INT_MAX. So we can safely cast the result to int. 
-		 storage(concurrency::extent<1>(static_cast<int>(static_cast<uint64_t>(buffer_byte_len)/sizeof(int32_t))), 
+		 storage(concurrency::extent<1>(static_cast<int>(static_cast<uint64_t>(byte_len)/sizeof(int32_t))), 
                  reinterpret_cast<int32_t*>(buffer_ptr))
 	{
     }
 
-    // Check whether this bound buffer contains the region starting at buffer_ptr. 
-    bool contain(const void *buffer_ptr, size_t buffer_byte_len) const
+    // Check whether this bound buffer contains the region starting at buffer_ptr with length byte_len 
+    bool contain(const void *buffer_ptr, size_t byte_len) const
     {
-        if (mem_base <= buffer_ptr && (PTR_U64(mem_base)+byte_len >= PTR_U64(buffer_ptr)+buffer_byte_len))
+        if (mem_base <= buffer_ptr && (PTR_U64(mem_base)+byte_length >= PTR_U64(buffer_ptr)+byte_len))
         {
             return true;
         }
         return false;
     }
 
-    // Check whether this bound buffer completely excludes the region starting at buffer_ptr
-    bool exclusive_with(const void *buffer_ptr, size_t buffer_byte_len) const
+    // Check whether this bound buffer completely excludes the region starting at buffer_ptr with length byte_len
+    bool exclusive_with(const void *buffer_ptr, size_t byte_len) const
     {
-        if ((PTR_U64(mem_base)+byte_len <= PTR_U64(buffer_ptr)) ||
-            (PTR_U64(mem_base) >= PTR_U64(buffer_ptr)+buffer_byte_len))
+        if ((PTR_U64(mem_base)+byte_length <= PTR_U64(buffer_ptr)) ||
+            (PTR_U64(mem_base) >= PTR_U64(buffer_ptr)+byte_len))
         {
             return true;
         }
         return false;
     }
 
-    // Check whether this bound buffer overlaps with the region starting at buffer_ptr
+    // Check whether this bound buffer overlaps with the region starting at buffer_ptr with length byte_len
     // For the case the region is contained in the bound buffer, it returns false. 
-    bool overlap(const void *buffer_ptr, size_t buffer_byte_len) const
+    bool overlap(const void *buffer_ptr, size_t byte_len) const
     {
-        return !exclusive_with(buffer_ptr, buffer_byte_len) && !contain(buffer_ptr, buffer_byte_len);
+        return !exclusive_with(buffer_ptr, byte_len) && !contain(buffer_ptr, byte_len);
     }
     
 	const int32_t *mem_base;
-	const size_t byte_len;
+	const size_t byte_length;
 	concurrency::array_view<int32_t> storage;
 private:
     amp_buffer& operator=(const amp_buffer& right);
 };
 
 //----------------------------------------------------------------------------
+// thread_context
+//
+// data structure to be kept in the thread-local-storage for the calling thread
+//----------------------------------------------------------------------------
+
+class thread_context
+{
+public:
+	thread_context() : last_error_code(AMPBLAS_OK), curr_accl_view(concurrency::accelerator().default_view)
+	{
+	}
+
+	ampblas_result last_error_code;
+	concurrency::accelerator_view curr_accl_view;
+};
+
+//----------------------------------------------------------------------------
 // Data management facilities 
 //----------------------------------------------------------------------------
-#define ASSERT_BUFFER_SIZE(buf_byte_len) \
-    assert(((buf_byte_len) % sizeof(int32_t) == 0) && "buffer length must be multiple of int32_t size"); \
-    assert((static_cast<uint64_t>(buf_byte_len) <= static_cast<uint64_t>(INT_MAX)*sizeof(int32_t)) && "buffer length overflow");
+#define ASSERT_BUFFER_LENGTH(buf_byte_len) \
+    assert(((buf_byte_len) % sizeof(int32_t) == 0) && "Buffer length must be multiple of int32_t size"); \
+    assert((static_cast<uint64_t>(buf_byte_len) <= static_cast<uint64_t>(INT_MAX)*sizeof(int32_t)) && "Buffer length overflow");
 
-static inline void check_buffer_length(size_t byte_len, const char* err_prefix)
+static inline void check_buffer_length(size_t byte_len)
 {
     if (byte_len % sizeof(int32_t) != 0)
     {
-        throw ampblas_exception(std::string(err_prefix) + "buffer length must be multiple of int32_t size", AMPBLAS_BAD_RESOURCE);
+        throw ampblas_exception("Buffer length must be multiple of int32_t size", AMPBLAS_BAD_RESOURCE);
     }
     else if (static_cast<uint64_t>(byte_len) > static_cast<uint64_t>(INT_MAX)*sizeof(int32_t))
     {
-        throw ampblas_exception(std::string(err_prefix) +  "buffer length overflow", AMPBLAS_BAD_RESOURCE);
+        throw ampblas_exception("Buffer length overflow", AMPBLAS_BAD_RESOURCE);
     }
 }
 
-// Find the bound buffer which contains a region starting at buffer_ptr with byte length byte_len
+// Find the bound buffer which contains a region starting at buffer_ptr with length byte_len
 //
 // returns a bound buffer if the bound buffer contains the buffer [buffer_ptr, buffer_ptr+byte_len)
 // returns nullptr if the buffer [buffer_ptr, buffer_ptr+byte_len) is exclusive with any bound buffer 
@@ -159,9 +181,10 @@ static inline void check_buffer_length(size_t byte_len, const char* err_prefix)
 // The caller of this function has to hold g_allocations_cs lock for synchronization. 
 static amp_buffer* find_amp_buffer(const void *buffer_ptr, size_t byte_len)
 {
-    ASSERT_BUFFER_SIZE(byte_len);
+    ASSERT_BUFFER_LENGTH(byte_len);
 
     amp_buffer *ampbuff = nullptr;
+	amp_buffer *ampbuff_prev = nullptr;
 
     // No amp_buffer in cache yet. 
 	if (g_allocations.size() == 0) 
@@ -170,59 +193,59 @@ static amp_buffer* find_amp_buffer(const void *buffer_ptr, size_t byte_len)
 	}
 
 	auto it = g_allocations.lower_bound(const_cast<void*>(buffer_ptr));
-    if (it == g_allocations.end())
+    if (it == g_allocations.begin())
+    {
+        ampbuff = it->second;
+	}
+    else if (it == g_allocations.end())
     {
         it--; 
         ampbuff = it->second;
-        if (ampbuff->contain(buffer_ptr, byte_len)) return ampbuff;
-        else if (ampbuff->exclusive_with(buffer_ptr, byte_len)) return nullptr;
-        else throw ampblas_exception("ampblas::find_amp_buffer: Buffer overlapped", AMPBLAS_UNBOUND_RESOURCE);
-    }
-    else if (it == g_allocations.begin())
-    {
-        ampbuff = it->second;
-        if (ampbuff->contain(buffer_ptr, byte_len)) return ampbuff;
-        else if (ampbuff->exclusive_with(buffer_ptr, byte_len)) return nullptr;
-        else throw ampblas_exception("ampblas::find_amp_buffer: Buffer overlapped", AMPBLAS_UNBOUND_RESOURCE);
-    }
+	} 
     else
     {
         ampbuff = it->second;
         it--;
-        auto ampbuff_prev = it->second;
+        ampbuff_prev = it->second;
+	}
 
-        if (ampbuff->contain(buffer_ptr, byte_len)) return ampbuff;
-        else if (ampbuff_prev->contain(buffer_ptr, byte_len)) return ampbuff_prev;
-        else if (ampbuff->exclusive_with(buffer_ptr, byte_len) && ampbuff_prev->exclusive_with(buffer_ptr, byte_len)) return nullptr;
-        else throw ampblas_exception("ampblas::find_amp_buffer: Buffer overlapped", AMPBLAS_UNBOUND_RESOURCE);
-    }
+    if (ampbuff->contain(buffer_ptr, byte_len)) 
+	{
+		return ampbuff;
+	}
+	else if (ampbuff_prev != nullptr && ampbuff_prev->contain(buffer_ptr, byte_len)) 
+	{
+		return ampbuff_prev;
+	}
+	else if (ampbuff->overlap(buffer_ptr, byte_len) || 
+		ampbuff_prev != nullptr && ampbuff_prev->overlap(buffer_ptr, byte_len)) 
+	{
+		throw ampblas_exception("Buffer overlapped", AMPBLAS_BAD_RESOURCE);
+	}
+
+	return nullptr;
 }
 
 concurrency::array_view<int32_t> get_array_view(const void *buffer_ptr, size_t byte_len)
 {
     const amp_buffer *ampbuff = nullptr;
-    try
     {
 		concurrency::critical_section::scoped_lock scope_lock(g_allocations_cs);
         ampbuff = find_amp_buffer(buffer_ptr, byte_len);
     }
-    catch (ampblas_exception&)
-    {
-        throw ampblas_exception("ampblas::get_array_view: Buffer overlapped", AMPBLAS_BAD_RESOURCE);
-    }
 
     if (ampbuff == nullptr) 
     {
-        throw ampblas_exception("ampblas::get_array_view: Unbound resource", AMPBLAS_UNBOUND_RESOURCE);
+        throw ampblas_exception("Unbound resource", AMPBLAS_UNBOUND_RESOURCE);
     }
 
-    check_buffer_length(byte_len, "ampblas::get_array_view: ");
+    check_buffer_length(byte_len);
 	int elem_len = static_cast<int>(byte_len / sizeof(int32_t));
 
     uint64_t byte_offset = PTR_U64(buffer_ptr) - PTR_U64(ampbuff->mem_base);
     if (byte_offset % sizeof(int32_t) != 0)
     {
-        throw ampblas_exception("ampblas::get_array_view: Invalid buffer argument", AMPBLAS_INVALID_ARG);
+        throw ampblas_exception("Invalid buffer argument", AMPBLAS_INVALID_ARG);
     }
 
     uint64_t elem_offset = byte_offset / sizeof(int32_t);
@@ -233,30 +256,23 @@ concurrency::array_view<int32_t> get_array_view(const void *buffer_ptr, size_t b
 
 void bind(void *buffer_ptr, size_t byte_len)
 {
-    check_buffer_length(byte_len, "ampblas::bind: ");
-	try
-	{
-		concurrency::critical_section::scoped_lock scope_lock(g_allocations_cs);
+    check_buffer_length(byte_len);
+	concurrency::critical_section::scoped_lock scope_lock(g_allocations_cs);
 
-        amp_buffer *ampbuff = nullptr;
-        ampbuff = find_amp_buffer(buffer_ptr, byte_len);
+    amp_buffer *ampbuff = nullptr;
+    ampbuff = find_amp_buffer(buffer_ptr, byte_len);
  
-        if (ampbuff != nullptr)
-        {
-			throw ampblas_exception("ampblas::bind: Duplicate binding", AMPBLAS_BAD_RESOURCE);
-        }
-        
-		std::unique_ptr<amp_buffer> buff(new amp_buffer(buffer_ptr, byte_len));
-
-        auto it = g_allocations.insert(std::make_pair(buffer_ptr, buff.get()));
-		assert(it.second == true);
-
-        buff.release();
-	}
-    catch (ampblas_exception&)
+    if (ampbuff != nullptr)
     {
-        throw ampblas_exception("ampblas::bind: Buffer overlapped", AMPBLAS_BAD_RESOURCE);
+		throw ampblas_exception("Duplicate binding", AMPBLAS_BAD_RESOURCE);
     }
+        
+	std::unique_ptr<amp_buffer> buff(new amp_buffer(buffer_ptr, byte_len));
+
+    auto it = g_allocations.insert(std::make_pair(buffer_ptr, buff.get()));
+	assert(it.second == true);
+
+    buff.release();
 }
 
 void unbind(void *buffer_ptr)
@@ -268,7 +284,7 @@ void unbind(void *buffer_ptr)
         auto it = g_allocations.find(buffer_ptr);
         if (it == g_allocations.end())
         {
-            throw ampblas_exception("ampblas::unbind: Unbound resource", AMPBLAS_UNBOUND_RESOURCE);
+            throw ampblas_exception("Unbound resource", AMPBLAS_UNBOUND_RESOURCE);
         }
 
         ampbuff.reset(it->second);
@@ -278,46 +294,65 @@ void unbind(void *buffer_ptr)
 
 void synchronize(void *buffer_ptr, size_t byte_len)
 {
-    check_buffer_length(byte_len, "ampblas::synchronize: ");
+    check_buffer_length(byte_len);
 	get_array_view(buffer_ptr, byte_len).synchronize();
 }
 
 void discard(void *buffer_ptr, size_t byte_len)
 {
-    check_buffer_length(byte_len, "ampblas::discard: ");
+    check_buffer_length(byte_len);
 	get_array_view(buffer_ptr, byte_len).discard_data();
 }
 
 void refresh(void *buffer_ptr, size_t byte_len)
 {
-    check_buffer_length(byte_len, "ampblas::refresh: ");
+    check_buffer_length(byte_len);
     get_array_view(buffer_ptr, byte_len).refresh();
+}
+
+// The last-error code is kept in thread-local-storage for the calling thread
+void set_last_error(const ampblas_result error_code)
+{
+	if (g_thread_context == nullptr)
+	{
+		g_thread_context = new _details::thread_context();
+	}
+    g_thread_context->last_error_code = error_code;
+}
+
+ampblas_result get_last_error()
+{
+	if (g_thread_context == nullptr)
+	{
+		g_thread_context = new _details::thread_context();
+	}
+    return g_thread_context->last_error_code;
 }
 
 } // namespace _details
 
 
-// This function is not thread-safe. User of the function should synchronize to avid data race
-// when calling this function from multiple-threads or synchronize with calling 
-// get_current_accelerator_view.
-void set_current_accelerator_view(const concurrency::accelerator_view& acc_view)
+// The current accelerator_view is kept in thread-local-storage for the calling thread
+void set_current_accelerator_view(const concurrency::accelerator_view& accl_view)
 {
-    if (_details::g_curr_accelerator_view.get() == nullptr || *_details::g_curr_accelerator_view != acc_view)   
-    { 
-        _details::g_curr_accelerator_view.reset(new concurrency::accelerator_view(acc_view)); 
-    }
+	if (_details::g_thread_context == nullptr)
+	{
+		_details::g_thread_context = new _details::thread_context();
+	}
+
+	_details::g_thread_context->curr_accl_view = accl_view;
 }
 
-// This function is not thread-safe. But use of this function doesn't need to be synchronized as long
-// as user can guarantee there is no data race with the calling of set_current_accelerator_view.
+// The accelerator_view associated with the default accelerator is returned, if no
+// set_current_accelerator_view() is called previously.
 concurrency::accelerator_view get_current_accelerator_view()
 {
-    if (_details::g_curr_accelerator_view.get() == nullptr)   
-    {
-        return concurrency::accelerator().default_view;
-    }
+	if (_details::g_thread_context == nullptr)
+	{
+		_details::g_thread_context = new _details::thread_context();
+	}
 
-    return *_details::g_curr_accelerator_view; 
+	return _details::g_thread_context->curr_accl_view;
 }
 
 } // namespace ampblas
@@ -346,8 +381,9 @@ concurrency::accelerator_view get_current_accelerator_view()
         } \
         catch (...) \
         { \
-            re = AMPBLAS_WIN_ERROR; \
+            re = AMPBLAS_INTERNAL_ERROR; \
         } \
+        ampblas_set_last_error(re); \
         return re; \
     }
 
@@ -376,13 +412,23 @@ extern "C" ampblas_result ampblas_refresh(void *buffer_ptr, size_t byte_len)
     AMPBLAS_CHECKED_CALL(ampblas::_details::refresh(buffer_ptr, byte_len));
 }
 
-extern "C" ampblas_result ampblas_set_current_accelerator_view(void *acc_view)
+extern "C" ampblas_result ampblas_set_current_accelerator_view(void *accl_view)
 {
-    if (acc_view == nullptr)
+    if (accl_view == nullptr)
         return AMPBLAS_INVALID_ARG;
 
-    const concurrency::accelerator_view& av = *reinterpret_cast<concurrency::accelerator_view*>(acc_view);
+    const concurrency::accelerator_view& av = *reinterpret_cast<concurrency::accelerator_view*>(accl_view);
 	AMPBLAS_CHECKED_CALL(ampblas::set_current_accelerator_view(av));
+}
+
+extern "C" ampblas_result ampblas_get_last_error()
+{
+    return ampblas::_details::get_last_error();
+}
+
+extern "C" void ampblas_set_last_error(const ampblas_result error_code)
+{
+    return ampblas::_details::set_last_error(error_code);
 }
 
 extern "C" void ampblas_xerbla(const char *srname, int * info)

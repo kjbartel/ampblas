@@ -23,23 +23,7 @@
 #ifndef AMPBLAS_RUNTIME_H
 #define AMPBLAS_RUNTIME_H
 
-//----------------------------------------------------------------------------
-// AMPBLAS error codes
-//----------------------------------------------------------------------------
-enum ampblas_result
-{
-    AMPBLAS_OK                          = 0,
-    AMPBLAS_FAIL                        = 1<<0,
-    AMPBLAS_BAD_LEADING_DIM             = 1<<1,
-    AMPBLAS_BAD_RESOURCE                = 1<<2,
-    AMPBLAS_INVALID_ARG                 = 1<<3,
-    AMPBLAS_INVALID_BUFFER_SIZE         = 1<<4,
-    AMPBLAS_OUT_OF_MEMORY               = 1<<5,
-    AMPBLAS_UNBOUND_RESOURCE            = 1<<6,
-    AMPBLAS_AMP_RUNTIME_ERROR           = 1<<7,
-    AMPBLAS_NOT_SUPPORTED_FEATURE       = 1<<8,
-    AMPBLAS_WIN_ERROR                   = 1<<9, // call ::GetLastError for info
-};
+#include "ampblas_defs.h"
 
 //----------------------------------------------------------------------------
 // AMPBLAS runtime for C++ BLAS 
@@ -95,12 +79,12 @@ private:
 //----------------------------------------------------------------------------
 namespace _details
 {
-void bind(void *buffer_ptr, size_t byte_len);
-void unbind(void *buffer_ptr);
-void synchronize(void *buffer_ptr, size_t byte_len);
-void discard(void *buffer_ptr, size_t byte_len);
-void refresh(void *buffer_ptr, size_t byte_len);
-concurrency::array_view<int32_t> get_array_view(const void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL void bind(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL void unbind(void *buffer_ptr);
+AMPBLAS_DLL void synchronize(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL void discard(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL void refresh(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL concurrency::array_view<int32_t> get_array_view(const void *buffer_ptr, size_t byte_len);
 } // nampespace _details
 
 template<typename T> 
@@ -154,12 +138,12 @@ inline concurrency::array_view<value_type> get_array_view(const value_type *ptr,
 // However, this function is not thread-safe. User of this function should synchronize to 
 // avoid data race when calling this function from multiple threads or should synchronize 
 // with calling get_current_accelerator_view.
-void set_current_accelerator_view(const concurrency::accelerator_view& acc_view);
+AMPBLAS_DLL void set_current_accelerator_view(const concurrency::accelerator_view& acc_view);
 
 // This function is not thread-safe. But use of this function from multiple threads doesn't 
 // need to be synchronized as long as user can guarantee there is no data race with calls to 
 // set_current_accelerator_view.
-concurrency::accelerator_view get_current_accelerator_view();
+AMPBLAS_DLL concurrency::accelerator_view get_current_accelerator_view();
 
 //----------------------------------------------------------------------------
 // Data transformation operators and utility APIs
@@ -231,7 +215,7 @@ private:
 };
 
 template <typename base_view_type>
-stride_view<base_view_type> make_stride_view(const base_view_type& bv, int stride, const concurrency::extent<base_view_type::rank>& logical_extent) restrict(cpu, amp)
+inline stride_view<base_view_type> make_stride_view(const base_view_type& bv, int stride, const concurrency::extent<base_view_type::rank>& logical_extent) restrict(cpu, amp)
 {
 	return stride_view<base_view_type>(bv, stride, logical_extent);
 }
@@ -249,24 +233,30 @@ extern "C" {
 // Data management API's 
 // These are adapters to call the AMP C++ BLAS runtime data management functions. 
 //
-ampblas_result ampblas_bind(void *buffer_ptr, size_t byte_len);
-ampblas_result ampblas_unbind(void *buffer_ptr);
-ampblas_result ampblas_synchronize(void *buffer_ptr, size_t byte_len);
-ampblas_result ampblas_discard(void *buffer_ptr, size_t byte_len);
-ampblas_result ampblas_refresh(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL ampblas_result ampblas_bind(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL ampblas_result ampblas_unbind(void *buffer_ptr);
+AMPBLAS_DLL ampblas_result ampblas_synchronize(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL ampblas_result ampblas_discard(void *buffer_ptr, size_t byte_len);
+AMPBLAS_DLL ampblas_result ampblas_refresh(void *buffer_ptr, size_t byte_len);
 
-// 
 // ampblas_set_current_accelerator_view set the accelerator view which will be used
 // in subsequent AMPBLAS calls. There is no restriction on data access---once data
 // is bound using ampblas_bind, it could be used on any accelerator.
 //
-// However, this function is not thread-safe. User of the function should synchronize to 
-// avid data race when calling this function from multiple-threads.
-ampblas_result ampblas_set_current_accelerator_view(void * acc_view);
+// returns AMPBLAS_INVALID_ARG if the accl_view argument is nullptr
+AMPBLAS_DLL ampblas_result ampblas_set_current_accelerator_view(void * accl_view);
 
-// TODO: query thread local error information
-ampblas_result ampblas_get_last_errno();
-void ampblas_get_last_err_message(const char**);
+// Retrieves the calling thread's last-error code value. The last-error code is maintained 
+// on a per-thread basis. Multiple threads do not overwrite each other's last-error code.
+// You should call this function immediately when you want to check the status of a blas 
+// function call. That is because some functions set the last-error code with AMPBLAS_OK 
+// when they succeed, wiping out the error code set by the most recently failed function.
+AMPBLAS_DLL ampblas_result ampblas_get_last_error();
+
+// Sets the last-error code for the calling thread
+AMPBLAS_DLL void ampblas_set_last_error(const ampblas_result error_code);
+
+AMPBLAS_DLL void ampblas_xerbla(const char *srname, int * info);
 
 #ifdef __cplusplus
 }

@@ -23,36 +23,43 @@
 #include "ampcblas.h"
 #include "ampblas.h"
 
+#define AMPBLAS_CHECKED_CALL(expr) \
+    { \
+        ampblas_result re = AMPBLAS_OK; \
+        try \
+        { \
+            (expr);\
+        } \
+        catch (ampblas::ampblas_exception &e) \
+        { \
+            re = e.get_error_code(); \
+        } \
+        catch (concurrency::runtime_exception&) \
+        { \
+            re = AMPBLAS_AMP_RUNTIME_ERROR; \
+        } \
+        catch (std::bad_alloc&) \
+        { \
+            re = AMPBLAS_OUT_OF_MEMORY; \
+        } \
+        catch (...) \
+        { \
+            re = AMPBLAS_INTERNAL_ERROR; \
+        } \
+        ampblas_set_last_error(re); \
+    }
+
 // 
 // AMP CBLAS AXPY implementation file.
 // 
 extern "C" void ampblas_saxpy(const int N, const float alpha, const float *X,
                               const int incX, float *Y, const int incY)
 {
-    // TODO: catch exceoptions and convert to ampblas_result error code, and queriable 
-    // by calling get_last_err_code, get_last_err_message
-    ampblas::axpy<float>(N, alpha, X, incX, Y, incY);
+    AMPBLAS_CHECKED_CALL(ampblas::axpy<float>(N, alpha, X, incX, Y, incY));
 }
 
 void ampblas_daxpy(const int N, const double alpha, const double *X,
                    const int incX, double *Y, const int incY)
 {
-	ampblas::axpy<double>(N, alpha, X, incX, Y, incY);
+	AMPBLAS_CHECKED_CALL(ampblas::axpy<double>(N, alpha, X, incX, Y, incY));
 }
-
-#pragma warning ( push )
-#pragma warning ( disable : 4100 ) // 'N' : unreferenced formal parameter
-
-void ampblas_caxpy(const int N, const void *alpha, const void *X,
-                   const int incX, void *Y, const int incY)
-{
-	assert(0); // not yet implemented
-}
-
-
-void ampblas_zaxpy(const int N, const void *alpha, const void *X,
-                   const int incX, void *Y, const int incY)
-{
-	assert(0); // not yet implemented
-}
-#pragma warning ( pop )

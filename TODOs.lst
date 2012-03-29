@@ -1,0 +1,4 @@
+AMPBLAS: C++ AMP BLAS Library
+
+1. support complex type
+2. provide framework to build static library 

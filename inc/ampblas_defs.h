@@ -23,6 +23,20 @@
 #define AMPBLAS_DEFS_H
 
 //----------------------------------------------------------------------------
+// DLL export/import specifiers
+//
+// The export/import mechanism used here is the __declspec(export) method 
+// supported by Microsoft Visual Studio, but any other export method supported
+// by your development environment may be substituted.
+//----------------------------------------------------------------------------
+#ifndef AMPBLAS_DLL 
+#define AMPBLAS_DLL __declspec(dllimport)
+#else
+#undef AMPBLAS_DLL
+#define AMPBLAS_DLL __declspec(dllexport)
+#endif
+
+//----------------------------------------------------------------------------
 // Enumerated and derived types
 //----------------------------------------------------------------------------
 enum AMPBLAS_ORDER {CblasRowMajor=101, CblasColMajor=102};
@@ -30,5 +44,21 @@ enum AMPBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113};
 enum AMPBLAS_UPLO {CblasUpper=121, CblasLower=122};
 enum AMPBLAS_DIAG {CblasNonUnit=131, CblasUnit=132};
 enum AMPBLAS_SIDE {CblasLeft=141, CblasRight=142};
+
+//----------------------------------------------------------------------------
+// AMPBLAS error codes
+//----------------------------------------------------------------------------
+enum ampblas_result
+{
+    AMPBLAS_OK = 0,
+    AMPBLAS_FAIL,
+    AMPBLAS_BAD_RESOURCE,
+    AMPBLAS_INVALID_ARG,
+    AMPBLAS_OUT_OF_MEMORY,
+    AMPBLAS_UNBOUND_RESOURCE,
+    AMPBLAS_AMP_RUNTIME_ERROR,
+    AMPBLAS_NOT_SUPPORTED_FEATURE,
+    AMPBLAS_INTERNAL_ERROR, 
+};
 
 #endif // AMPBLAS_DEFS_H
