@@ -1,4 +1,15 @@
-AMPBLAS: C++ AMP BLAS Library
+AMPBLAS Potential TODOs:
 
 1. support complex type
-2. provide framework to build static library 
+2. provide framework to build static library
+3. implement script to generate ampblas_xfunc
+4. address thread-local-storage not supported for Metro Style apps 
+5. replace critical_section lock with reader-writer lock
+6. separate MSFT-specific implementation with platform independent code
+
+7. design bind_array_view
+8. design architecture specific abstract layer 
+9. design strategy to statically and dynamically partition data and offload task to CPU and GPU
+9. design matrix and vector class supporting expression evaluation 
+10. auto-tuning framework
+11. deployment package 
