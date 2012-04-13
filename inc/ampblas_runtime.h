@@ -41,13 +41,13 @@ namespace ampblas
 class ampblas_exception : public std::exception
 {
 public:
-    ampblas_exception(const char *const& msg, ampblas_result error_code) throw();
-    ampblas_exception(const std::string& msg, ampblas_result error_code) throw();
-    explicit ampblas_exception(ampblas_result error_code) throw();
-    ampblas_exception(const ampblas_exception &other) throw();
-    virtual ~ampblas_exception() throw();
-    ampblas_result get_error_code() const throw();
-    virtual const char *what() const throw();
+AMPBLAS_DLL ampblas_exception(const char *const& msg, ampblas_result error_code) throw();
+AMPBLAS_DLL ampblas_exception(const std::string& msg, ampblas_result error_code) throw();
+AMPBLAS_DLL explicit ampblas_exception(ampblas_result error_code) throw();
+AMPBLAS_DLL ampblas_exception(const ampblas_exception &other) throw();
+AMPBLAS_DLL virtual ~ampblas_exception() throw();
+AMPBLAS_DLL ampblas_result get_error_code() const throw();
+AMPBLAS_DLL virtual const char *what() const throw();
 
 private:
     ampblas_exception &operator=(const ampblas_exception &);
@@ -64,7 +64,8 @@ private:
 // than once. Also, binding of overlapping regions is not supported.
 //
 // To remove a binding call unbind. This function should only be invoked
-// on the exact regions which were previously bound.
+// on the exact regions which were previously bound. Otherwise the function returns
+// false.
 //
 // Bindings are (could be) implemented using array_view and they expose a similar
 // contract for sychronizing data to the main copy, discarding current changes,
@@ -80,7 +81,8 @@ private:
 namespace _details
 {
 AMPBLAS_DLL void bind(void *buffer_ptr, size_t byte_len);
-AMPBLAS_DLL void unbind(void *buffer_ptr);
+AMPBLAS_DLL bool unbind(void *buffer_ptr);
+AMPBLAS_DLL bool ifbound(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL void synchronize(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL void discard(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL void refresh(void *buffer_ptr, size_t byte_len);
@@ -94,9 +96,9 @@ inline void bind(T *buffer_ptr, size_t element_count)
 }
 
 template<typename T> 
-inline void unbind(T *buffer_ptr)
+inline bool unbind(T *buffer_ptr)
 {
-    _details::unbind(buffer_ptr);
+    return _details::unbind(buffer_ptr);
 }
 
 template<typename T> 
@@ -234,14 +236,27 @@ extern "C" {
 // These are adapters to call the AMP C++ BLAS runtime data management functions. 
 //
 AMPBLAS_DLL ampblas_result ampblas_bind(void *buffer_ptr, size_t byte_len);
-AMPBLAS_DLL ampblas_result ampblas_unbind(void *buffer_ptr);
+
+// This function doesn't change the last_error_code
+AMPBLAS_DLL bool           ampblas_unbind(void *buffer_ptr);
+
+// This function doesn't change the last_error_code
+AMPBLAS_DLL bool           ampblas_ifbound(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL ampblas_result ampblas_synchronize(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL ampblas_result ampblas_discard(void *buffer_ptr, size_t byte_len);
 AMPBLAS_DLL ampblas_result ampblas_refresh(void *buffer_ptr, size_t byte_len);
 
 // ampblas_set_current_accelerator_view set the accelerator view which will be used
-// in subsequent AMPBLAS calls. There is no restriction on data access---once data
-// is bound using ampblas_bind, it could be used on any accelerator.
+// in subsequent AMPBLAS calls. If this function has not been called in current 
+// thread, the default accelerator_view associated with the default accelerator 
+// will be used. 
+//
+// There is no restriction on data access---once data is bound using ampblas_bind, 
+// it could be used on any accelerator.
+// 
+// current accelerator_view is per-thread basis. In the scenerios where threads can be
+// used, such as in thread-pool model, the reused thread can pick up the accelerator_view 
+// set previously, if have not been reset.  
 //
 // returns AMPBLAS_INVALID_ARG if the accl_view argument is nullptr
 AMPBLAS_DLL ampblas_result ampblas_set_current_accelerator_view(void * accl_view);

@@ -24,6 +24,7 @@
 
 #include <stddef.h>
 #include "ampblas_defs.h"
+#include "ampblas_ccomplex.h"
 #include "ampblas_runtime.h"
 
 #ifdef __cplusplus

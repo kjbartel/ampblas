@@ -19,9 +19,14 @@
  *---------------------------------------------------------------------------*/
 #pragma once 
 
-#define  RETURN_IF_FAIL(expr) \
-    do { ampblas_result ar = (expr); if (ar != AMPBLAS_OK) return false; } while(0) 
+#define EXECUTE_IF_OK(pred, expr) \
+    (pred) = (((pred) == AMPBLAS_OK) ? (expr) : (pred))
 
-#define  RETURN_IF_KERNEL_FAIL(expr) \
-    do { (expr); if (ampblas_get_last_error() != AMPBLAS_OK) return false; } while(0)
+#define  EXECUTE_KERNEL_IF_OK(pred, expr) \
+    do { \
+        if ((pred) == AMPBLAS_OK) { \
+            (expr); \
+            (pred) = ampblas_get_last_error(); \
+        } \
+    } while(0)
 

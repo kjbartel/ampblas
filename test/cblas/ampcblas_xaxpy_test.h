@@ -17,9 +17,10 @@
  * Tests for AMP CBLAS interface ampblas_[s,d,c,z]axpy
  *
  *---------------------------------------------------------------------------*/
-#pragma once 
-
 #include <vector>
+#include <complex>
+
+#pragma warning (disable : 4244) // conversion from 'int' to 'const float', possible loss of data
 
 //------------------------------------------------------------------------------------
 // Testing ampblas_xaxpy input arguments
@@ -33,23 +34,28 @@ bool test_axpy_1()
     // Initialize buffers 
     for (int i=0; i<n; i++)
 	{
-		x[i] = (T)i;
-		y[i] = (T)i * 10;
+		x[i] = i;
+		y[i] = i * 10;
 	}
 
     //-------------------------------------------------
     // Testing n = 0, 
     // ampblas_xaxpy should return without modifying y
     //-------------------------------------------------
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+    ampblas_result re = AMPBLAS_OK;
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
-    RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(0, alpha, x, 1, y, 1));
-	RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(0, alpha, x, 1, y, 1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+	ampblas_unbind(x);
+	ampblas_unbind(y);
 
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
     // Verify result
 	for (int i=0; i<n; i++)
 	{
@@ -65,16 +71,20 @@ bool test_axpy_1()
     // Testing alpha = 0
     // ampblas_xaxpy should return without modifying y
     //-------------------------------------------------
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
-    RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(n, (T)0, x, 1, y, 1));
-	RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n, (T)0, x, 1, y, 1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+    ampblas_unbind(x);
+	ampblas_unbind(y);
 
     // Verify result
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
 	for (int i=0; i<n; i++)
 	{
 		T actual = y[i];
@@ -98,25 +108,31 @@ bool test_axpy_2()
 	const int n = 100;
 	T x[n], y[n], alpha = 17;
 
+    // Initialize buffers 
 	for (int i=0; i<n; i++)
 	{
-		x[i] = (T)i;
-		y[i] = (T)i * 10;
+		x[i] = i;
+		y[i] = i * 10;
 	}
 
     // Bind buffers
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+    ampblas_result re = AMPBLAS_OK;
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
     // Run test
-    RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(n, alpha, x, 1, y, 1));
-	RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n, alpha, x, 1, y, 1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
     // Unbind buffers
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+	ampblas_unbind(x);
+	ampblas_unbind(y);
 
     // Verify result
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
 	for (int i=0; i<n; i++)
 	{
 		T actual = y[i];
@@ -141,26 +157,32 @@ bool test_axpy_3()
 	const int n = 100;
     const int offset = 2;
 
+    // Initialize buffers 
 	T x[n], y[n], alpha = 17;
 	for (int i=0; i<n; i++)
 	{
-		x[i] = (T)i;
-		y[i] = (T)i * 10;
+		x[i] = i;
+		y[i] = i * 10;
 	}
 
     // Bind buffers
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+    ampblas_result re = AMPBLAS_OK;
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
     // Run test
-    RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(n-offset, alpha, x+offset, 1, y+offset, 1));
-	RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n-offset, alpha, x+offset, 1, y+offset, 1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
     // Unbind buffers
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+	ampblas_unbind(x);
+	ampblas_unbind(y);
 
     // Verify result
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
 	for (int i=offset; i<n; i++)
 	{
 		T actual = y[i];
@@ -184,25 +206,31 @@ bool test_axpy_4()
 	const int n = 100;
 	T x[n], y[n], alpha = 17;
 
+    // Initialize buffers 
 	for (int i=0; i<n; i++)
 	{
-		x[i] = (T)i;
-		y[i] = (T)i * 10;
+		x[i] = i;
+		y[i] = i * 10;
 	}
 
     // Bind buffers
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+    ampblas_result re = AMPBLAS_OK;
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
     // Run test
-    RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(n, alpha, x, -1, y, -1));
-	RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n, alpha, x, -1, y, -1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
     // Unbind buffers
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+	ampblas_unbind(x);
+	ampblas_unbind(y);
 
     // Verify result
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
 	for (int i=0; i<n; i++)
 	{
 		T actual = y[i];
@@ -216,3 +244,52 @@ bool test_axpy_4()
 
     return true;
 }
+//------------------------------------------------------------------------------------
+// Testing ampblas_xaxpy: y[i*incy] += alpha * x[i*incx], with complex type
+// where incx > 0, incy > 0
+//------------------------------------------------------------------------------------
+template<typename T, typename compare_func>
+bool test_axpy_5(compare_func compare_equal)
+{
+	const int n = 100;
+	T x[n], y[n];
+    T alpha = {17,12};
+
+    // Initialize buffers 
+	for (int i=0; i<n; i++)
+	{
+        x[i].real = i;    x[i].imag = i;
+        y[i].real = i*10; y[i].imag = i*10;
+	}
+
+    // Bind buffers
+    ampblas_result re = AMPBLAS_OK;
+	EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
+
+    // Run test
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n, alpha, x, 1, y, 1));
+	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
+
+    // Unbind buffers
+	ampblas_unbind(x);
+	ampblas_unbind(y);
+
+    // Verify result
+    if (re != AMPBLAS_OK)
+    {
+        return false;
+    }
+	for (int i=0; i<n; i++)
+	{
+		T actual = y[i];
+        T expected = {15*i, 39*i};
+		if (!compare_equal(&actual, &expected))
+        {
+            return false;
+        }
+	}
+
+    return true;
+}
+

@@ -24,7 +24,7 @@
 #include <memory>
 #include <amp.h>
 #include <assert.h>
-
+#include <concurrent_unordered_map.h> // Microsoft specific 
 #include "ampblas_runtime.h"
 
 namespace ampblas 
@@ -75,10 +75,12 @@ namespace
 {
 concurrency::critical_section g_allocations_cs;
 std::map<const void*, amp_buffer*> g_allocations;
-// The thread-local-storage here is the __declspec(thread) method supported by 
-// Microsoft Visual Studio, but any other thread-local-storage method supported
-// by your development environment may be substituted.
-__declspec(thread) thread_context *g_thread_context = nullptr;
+
+// This is to store per-thread shared resources. Currently two resources last error code 
+// and current accelerator_view are stored. concurrent_unordered_map is supported by 
+// Microsoft Visual Studio. It is lock-free. You can also use thread_local feature if 
+// your development environment supports. 
+concurrency::concurrent_unordered_map<DWORD, std::unique_ptr<thread_context>> g_thread_contexts;
 }
 
 #define PTR_U64(ptr)      reinterpret_cast<uint64_t>(ptr)
@@ -259,23 +261,20 @@ void bind(void *buffer_ptr, size_t byte_len)
     check_buffer_length(byte_len);
 	concurrency::critical_section::scoped_lock scope_lock(g_allocations_cs);
 
-    amp_buffer *ampbuff = nullptr;
-    ampbuff = find_amp_buffer(buffer_ptr, byte_len);
- 
+    auto ampbuff = find_amp_buffer(buffer_ptr, byte_len);
     if (ampbuff != nullptr)
     {
 		throw ampblas_exception("Duplicate binding", AMPBLAS_BAD_RESOURCE);
     }
         
 	std::unique_ptr<amp_buffer> buff(new amp_buffer(buffer_ptr, byte_len));
-
     auto it = g_allocations.insert(std::make_pair(buffer_ptr, buff.get()));
 	assert(it.second == true);
 
     buff.release();
 }
 
-void unbind(void *buffer_ptr)
+bool unbind(void *buffer_ptr)
 {
 	std::unique_ptr<amp_buffer> ampbuff;
 	{
@@ -284,12 +283,31 @@ void unbind(void *buffer_ptr)
         auto it = g_allocations.find(buffer_ptr);
         if (it == g_allocations.end())
         {
-            throw ampblas_exception("Unbound resource", AMPBLAS_UNBOUND_RESOURCE);
+            // unbound buffer
+            return false;
         }
 
         ampbuff.reset(it->second);
 		g_allocations.erase(it);
 	}
+
+    return true;
+}
+
+bool ifbound(void *buffer_ptr, size_t byte_len)
+{
+    check_buffer_length(byte_len);
+	concurrency::critical_section::scoped_lock scope_lock(g_allocations_cs);
+
+    try 
+    {
+        return (find_amp_buffer(buffer_ptr, byte_len) != nullptr);
+    } 
+    catch (ampblas_exception&)
+    {
+        // overlapped buffer
+        return false;
+    }
 }
 
 void synchronize(void *buffer_ptr, size_t byte_len)
@@ -310,23 +328,34 @@ void refresh(void *buffer_ptr, size_t byte_len)
     get_array_view(buffer_ptr, byte_len).refresh();
 }
 
-// The last-error code is kept in thread-local-storage for the calling thread
+thread_context* get_current_thread_context(const DWORD tid)
+{
+    auto it = g_thread_contexts.find(tid);
+    if (it == g_thread_contexts.end())
+    {
+        auto pair = g_thread_contexts.insert(std::make_pair(tid, std::unique_ptr<thread_context>(new thread_context())));
+        assert(pair.second == true);
+
+        it = pair.first;
+    }
+    return it->second.get();
+}
+
+// Sets the last-error code for the calling thread
 void set_last_error(const ampblas_result error_code)
 {
-	if (g_thread_context == nullptr)
-	{
-		g_thread_context = new _details::thread_context();
-	}
-    g_thread_context->last_error_code = error_code;
+    auto curr_context = get_current_thread_context(GetCurrentThreadId());
+    assert(curr_context != nullptr);
+
+    curr_context->last_error_code = error_code;
 }
 
 ampblas_result get_last_error()
 {
-	if (g_thread_context == nullptr)
-	{
-		g_thread_context = new _details::thread_context();
-	}
-    return g_thread_context->last_error_code;
+    auto curr_context = get_current_thread_context(GetCurrentThreadId());
+    assert(curr_context != nullptr);
+
+    return curr_context->last_error_code;
 }
 
 } // namespace _details
@@ -335,24 +364,20 @@ ampblas_result get_last_error()
 // The current accelerator_view is kept in thread-local-storage for the calling thread
 void set_current_accelerator_view(const concurrency::accelerator_view& accl_view)
 {
-	if (_details::g_thread_context == nullptr)
-	{
-		_details::g_thread_context = new _details::thread_context();
-	}
+    auto curr_context = _details::get_current_thread_context(GetCurrentThreadId());
+    assert(curr_context != nullptr);
 
-	_details::g_thread_context->curr_accl_view = accl_view;
+	curr_context->curr_accl_view = accl_view;
 }
 
 // The accelerator_view associated with the default accelerator is returned, if no
 // set_current_accelerator_view() is called previously.
 concurrency::accelerator_view get_current_accelerator_view()
 {
-	if (_details::g_thread_context == nullptr)
-	{
-		_details::g_thread_context = new _details::thread_context();
-	}
+    auto curr_context = _details::get_current_thread_context(GetCurrentThreadId());
+    assert(curr_context != nullptr);
 
-	return _details::g_thread_context->curr_accl_view;
+	return curr_context->curr_accl_view;
 }
 
 } // namespace ampblas
@@ -392,9 +417,14 @@ extern "C" ampblas_result ampblas_bind(void *buffer_ptr, size_t byte_len)
     AMPBLAS_CHECKED_CALL(ampblas::_details::bind(buffer_ptr, byte_len));
 }
 
-extern "C" ampblas_result ampblas_unbind(void *buffer_ptr)
+extern "C" bool ampblas_unbind(void *buffer_ptr)
 {
-    AMPBLAS_CHECKED_CALL(ampblas::_details::unbind(buffer_ptr));
+    return ampblas::_details::unbind(buffer_ptr);
+}
+
+extern "C" bool ampblas_ifbound(void *buffer_ptr, size_t byte_len)
+{
+    return ampblas::_details::ifbound(buffer_ptr, byte_len);
 }
 
 extern "C" ampblas_result ampblas_synchronize(void *buffer_ptr, size_t byte_len)

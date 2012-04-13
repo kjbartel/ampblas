@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <vector>
 #include <amp.h>
+#include <assert.h>
 using namespace concurrency;
 
 //------------------------------------------------------------------------------------
@@ -73,14 +74,9 @@ bool test_runtime_1()
     {
         y[i] = (T)i;
     }
-	result = ampblas_unbind(y);
-    passed &= (result == AMPBLAS_UNBOUND_RESOURCE);
-
-	result = ampblas_unbind(x+2);
-    passed &= (result == AMPBLAS_UNBOUND_RESOURCE);
-
-	result = ampblas_unbind(x);
-    passed &= (result == AMPBLAS_OK);
+    passed &= (ampblas_unbind(y) == false);
+    passed &= (ampblas_unbind(x+2) == false);
+    passed &= (ampblas_unbind(x) == true);
     // now no buffer is bound
 
     //-------------------------------------------------
@@ -98,17 +94,74 @@ bool test_runtime_1()
     result = ampblas_synchronize(reinterpret_cast<char*>(x)+2, (n-2) * sizeof(T));
     passed &= (result == AMPBLAS_INVALID_ARG);
 
-	result = ampblas_unbind(x);
-    passed &= (result == AMPBLAS_OK);
+    passed &= (ampblas_unbind(x) == true);
 
     return passed;
 }
 
 //------------------------------------------------------------------------------------
-// Testing set_current_accelerator_view 
+// Testing set_current_accelerator_view in single thread
 //------------------------------------------------------------------------------------
 template<typename T>
 bool test_runtime_2()
+{
+    // initialize buffers
+    const int n = 100;
+	T x[n], y[n], alpha = 17;
+	for (int i=0; i<n; i++)
+	{
+		x[i] = (T)i;
+		y[i] = (T)i * 10;
+	}
+
+    // bind buffers
+    ampblas_result re = AMPBLAS_OK;
+    EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
+
+    // find all non-emulated accelerators
+	std::vector<accelerator> accls = accelerator::get_all();
+    accls.erase(std::remove_if(accls.begin(), accls.end(), [](accelerator &accl) {
+        return accl.is_emulated;
+    }), accls.end());
+    const int num_accls = static_cast<int>(accls.size());
+
+    // run ampblas_xaxpy on every non-emulated accelerator
+    for (int i=0; i<num_accls; i++)
+    {
+        accelerator_view accv = accls[i].default_view;
+        ampblas_set_current_accelerator_view(&accv);
+        EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(n, alpha, x, 1, y, 1));
+	    EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
+    }
+
+    // unbind buffer
+	ampblas_unbind(x);
+	ampblas_unbind(y);
+
+    // verify result
+    if (re == AMPBLAS_OK)
+    {
+	    for (int i=0; i<n; i++)
+	    {
+		    T actual = y[i];
+            T expected = static_cast<T>(i * (10 + 17*num_accls));
+		    if (actual != expected)
+            {
+                return false;
+            }
+	    }
+    }
+
+    return (re == AMPBLAS_OK);
+}
+
+//------------------------------------------------------------------------------------
+// Testing set_current_accelerator_view in multiple threads 
+// where each thread set different accelerator_view.
+//------------------------------------------------------------------------------------
+template<typename T>
+bool test_runtime_3()
 {
     // find all non-emulated accelerators
     std::vector<accelerator> accls = accelerator::get_all();
@@ -116,43 +169,50 @@ bool test_runtime_2()
         return accl.is_emulated;
     }), accls.end());
 
-    // run ampblas_xaxpy on every accelerator
+    // initialize buffer
     const int num_accls = static_cast<int>(accls.size());
 	const int n = 100;
+    assert(n % num_accls == 0 && "buffer size is not evenly divisiable by the number of accelerators");
 	T x[n], y[n], alpha = 17;
-
 	for (int i=0; i<n; i++)
 	{
 		x[i] = (T)i;
 		y[i] = (T)i * 10;
 	}
 
-	RETURN_IF_FAIL(ampblas_bind(x, n * sizeof(T)));
-	RETURN_IF_FAIL(ampblas_bind(y, n * sizeof(T)));
+    // bind buffers
+	ampblas_result re = AMPBLAS_OK;
+    EXECUTE_IF_OK(re, ampblas_bind(x, n * sizeof(T)));
+	EXECUTE_IF_OK(re, ampblas_bind(y, n * sizeof(T)));
 
-    for (int i=0; i<num_accls; i++)
+    // run ampblas_xaxpy in parallel, evenly divides work among each accelerator
+    int worksize = n / num_accls;
+    concurrency::parallel_for(0, num_accls, [=, &x, &y, &accls, &re] (int i) 
     {
         accelerator_view accv = accls[i].default_view;
-        ampblas_set_current_accelerator_view(&accv);
-        RETURN_IF_KERNEL_FAIL(ampblas_xaxpy(n, alpha, x, 1, y, 1));
-	    RETURN_IF_FAIL(ampblas_synchronize(y, n * sizeof(T)));
-    }
+        EXECUTE_IF_OK(re, ampblas_set_current_accelerator_view(&accv));
+        EXECUTE_KERNEL_IF_OK(re, ampblas_xaxpy(worksize, alpha, x+worksize*i, 1, y+worksize*i, 1));
+	    EXECUTE_IF_OK(re, ampblas_synchronize(y+worksize*i, worksize * sizeof(T)));
+    });
 
-	RETURN_IF_FAIL(ampblas_unbind(x));
-	RETURN_IF_FAIL(ampblas_unbind(y));
+    // unbind buffers
+    ampblas_unbind(x);
+    ampblas_unbind(y);
 
     // verify result
-	for (int i=0; i<n; i++)
-	{
-		T actual = y[i];
-        T expected = static_cast<T>(i * (10 + 17*num_accls));
+    if (re == AMPBLAS_OK)
+    {
+	    for (int i=0; i<n; i++)
+	    {
+		    T actual = y[i];
+            T expected = static_cast<T>(i * (10 + 17));
+		    if (actual != expected)
+            {
+                return false;
+            }
+	    }
+    }
 
-		if (actual != expected)
-        {
-            return false;
-        }
-	}
-
-    return true;
+    return (re == AMPBLAS_OK);
 }
 

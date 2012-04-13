@@ -1,9 +1,17 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 11
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cblas_test", "cblas\cblas_test.vcxproj", "{D117096B-32C9-C861-DD52-9CE48132589E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ampblas_lib", "ampblas.vcxproj", "{F5BD7078-110B-D139-38FD-72E7C55B3432}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "blas_test", "blas\blas_test.vcxproj", "{B47BB474-C77D-C95E-67C9-88ED73EB11BA}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ampblas_test", "test\blas\blas_test.vcxproj", "{B47BB474-C77D-C95E-67C9-88ED73EB11BA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F5BD7078-110B-D139-38FD-72E7C55B3432} = {F5BD7078-110B-D139-38FD-72E7C55B3432}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ampcblas_test", "test\cblas\cblas_test.vcxproj", "{D117096B-32C9-C861-DD52-9CE48132589E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{F5BD7078-110B-D139-38FD-72E7C55B3432} = {F5BD7078-110B-D139-38FD-72E7C55B3432}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,6 +37,14 @@ Global
 		{D117096B-32C9-C861-DD52-9CE48132589E}.Release|Win32.Build.0 = Release|Win32
 		{D117096B-32C9-C861-DD52-9CE48132589E}.Release|x64.ActiveCfg = Release|x64
 		{D117096B-32C9-C861-DD52-9CE48132589E}.Release|x64.Build.0 = Release|x64
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Debug|Win32.Build.0 = Debug|Win32
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Debug|x64.ActiveCfg = Debug|x64
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Debug|x64.Build.0 = Debug|x64
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Release|Win32.ActiveCfg = Release|Win32
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Release|Win32.Build.0 = Release|Win32
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Release|x64.ActiveCfg = Release|x64
+		{F5BD7078-110B-D139-38FD-72E7C55B3432}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

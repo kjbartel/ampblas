@@ -18,6 +18,14 @@
 #include <assert.h>
 #include "ampblas.h"
 
+#pragma warning (disable : 4244) // conversion from 'int' to 'const float', possible loss of data
+
+typedef ampblas::complex<float>  fcomplex;
+typedef ampblas::complex<double> dcomplex;
+
+//------------------------------------------------------------------------------------
+// Testing ampblas::axpy with real type
+//------------------------------------------------------------------------------------
 template<typename T>
 bool test_axpy_1()
 {
@@ -50,20 +58,70 @@ bool test_axpy_1()
                 return false;
             }
 	    }
-
     }
-    catch (...)
+    catch (std::exception&)
     {
+        // unbind buffers
+        ampblas::unbind(x);
+        ampblas::unbind(y);
+
         return false;
     }
 
     return true;
 }
 
-template<typename test_func>
-inline bool run_test(test_func test, const char* test_name)
+//------------------------------------------------------------------------------------
+// Testing ampblas::axpy with complex type
+//------------------------------------------------------------------------------------
+template<typename T>
+bool test_axpy_2()
 {
-    bool result = test();
+	const int n = 100;
+	T x[n], y[n], alpha = T(17,12);
+
+    for (int i=0; i<n; i++)
+	{
+		x[i] = T(i, i);
+		y[i] = T(i, i) * T::value_type(10);
+	}
+
+    try 
+    {
+	    ampblas::bind(x, n);
+	    ampblas::bind(y, n);
+
+	    ampblas::axpy(n, alpha, x, 1, y, 1);
+	    ampblas::synchronize(y, n);
+
+	    ampblas::unbind(x);
+	    ampblas::unbind(y);
+
+	    for (int i=0; i<n; i++)
+	    {
+		    T actual = y[i];
+		    T expected = T(15*i, 39*i);
+		    if (actual != expected)
+            {
+                return false;
+            }
+	    }
+    }
+    catch (std::exception&)
+    {
+        // unbind buffers
+        ampblas::unbind(x);
+        ampblas::unbind(y);
+
+        return false;
+    }
+
+    return true;
+}
+
+inline bool run_test(bool test, const char* test_name)
+{
+    bool result = test;
 
     std::cout << test_name << (result ? ": passed\n" : ": failed\n");
 
@@ -75,8 +133,10 @@ int main()
     bool passed = true;
 
     // Testing axpy
-    passed &= run_test(test_axpy_1<float>, "test_axpy_1<float>");
-    passed &= run_test(test_axpy_1<double>, "test_axpy_1<double>");
+    passed &= run_test(test_axpy_1<float>(), "test_axpy_1<float>");
+    passed &= run_test(test_axpy_1<double>(), "test_axpy_1<double>");
+	passed &= run_test(test_axpy_2<fcomplex>(), "test_axpy_2<fcomplex>");
+	passed &= run_test(test_axpy_2<dcomplex>(), "test_axpy_2<dcomplex>");
 
     return !passed;
 }
