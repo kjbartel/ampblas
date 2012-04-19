@@ -134,17 +134,17 @@ inline concurrency::array_view<value_type> get_array_view(const value_type *ptr,
 }
 
 // set_current_accelerator_view set the accelerator view which will be used
-// in subsequent AMPBLAS calls. There is no restriction on data access---once data 
-// is bound using bind, it could be used on any accelerator.
-//
-// However, this function is not thread-safe. User of this function should synchronize to 
-// avoid data race when calling this function from multiple threads or should synchronize 
-// with calling get_current_accelerator_view.
+// in subsequent AMPBLAS calls. There is no restriction on data access---once data is bound
+// using bind, it could be used on any accelerator.
+// 
+// Current accelerator_view is per-thread basis. In the scenerios where threads can be
+// reclaimed, such as in thread-pool model, the reclaimed thread can pick up the accelerator_view 
+// set previously, if it has not been reset.  
 AMPBLAS_DLL void set_current_accelerator_view(const concurrency::accelerator_view& acc_view);
 
-// This function is not thread-safe. But use of this function from multiple threads doesn't 
-// need to be synchronized as long as user can guarantee there is no data race with calls to 
-// set_current_accelerator_view.
+// Returns the accelerator_view set in last set_current_accelerator_view call. If 
+// set_current_accelerator_view has never been called in current thread, the default accelerator_view 
+// associated with the default accelerator will be used. 
 AMPBLAS_DLL concurrency::accelerator_view get_current_accelerator_view();
 
 //----------------------------------------------------------------------------
@@ -254,9 +254,9 @@ AMPBLAS_DLL ampblas_result ampblas_refresh(void *buffer_ptr, size_t byte_len);
 // There is no restriction on data access---once data is bound using ampblas_bind, 
 // it could be used on any accelerator.
 // 
-// current accelerator_view is per-thread basis. In the scenerios where threads can be
-// used, such as in thread-pool model, the reused thread can pick up the accelerator_view 
-// set previously, if have not been reset.  
+// Current accelerator_view is per-thread basis. In the scenerios where threads can be
+// reclaimed, such as in thread-pool model, the reclaimed thread can pick up the accelerator_view 
+// set previously, if it has not been reset.  
 //
 // returns AMPBLAS_INVALID_ARG if the accl_view argument is nullptr
 AMPBLAS_DLL ampblas_result ampblas_set_current_accelerator_view(void * accl_view);
