@@ -54,39 +54,41 @@ typedef ampblas::complex<double> dcomplex;
 
 extern "C" 
 {
+
+//
+// AMP CBLAS AMAX implementation file. 
 // 
-// AMP CBLAS SCAL implementation file.
-// 
-void ampblas_sscal(const int N, const float alpha, float *X, const int incX)
+
+int ampblas_isamax(const int N, const float  *X, const int incX)
 {
-    AMPBLAS_CHECKED_CALL(ampblas::scal(N, alpha, X, incX));
+    int ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax(N, X, incX) );
+    return ret;
 }
 
-void ampblas_dscal(const int N, const double alpha, double *X, const int incX)
+int ampblas_idamax(const int N, const double *X, const int incX)
 {
-	AMPBLAS_CHECKED_CALL(ampblas::scal(N, alpha, X, incX));
+    int ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax(N, X, incX) );
+    return ret;
 }
 
-void ampblas_cscal(const int N, const void *alpha, void *X, const int incX)
+//
+// AMP CBLAS ASUM implementation file. 
+//
+
+float ampblas_sasum(const int N, const float *X, const int incX)
 {
-	const fcomplex falpha =*(fcomplex*)(alpha);
-	AMPBLAS_CHECKED_CALL(ampblas::scal(N, falpha, (fcomplex*)X, incX));
+    float ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, X, incX) );
+    return ret;
 }
 
-void ampblas_zscal(const int N, const void *alpha, void *X, const int incX)
+double ampblas_dasum(const int N, const double *X, const int incX)
 {
-    dcomplex dalpha =*(dcomplex*)(alpha);;
-	AMPBLAS_CHECKED_CALL(ampblas::scal(N, dalpha, (dcomplex*)X, incX));
-}
-
-void ampblas_csscal(const int N, const float alpha, void *X, const int incX)
-{
-    AMPBLAS_CHECKED_CALL(ampblas::scal<fcomplex>(N, alpha, (fcomplex*)X, incX));
-}
-
-void ampblas_zdscal(const int N, const double alpha, void *X, const int incX)
-{
-	AMPBLAS_CHECKED_CALL(ampblas::scal<dcomplex>(N, alpha, (dcomplex*)X, incX));
+    double ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, X, incX) );
+    return ret;
 }
 
 // 
@@ -139,6 +141,137 @@ void ampblas_ccopy(const int N, const void *X, const int incX, void *Y, const in
 void ampblas_zcopy(const int N, const void *X, const int incX, void *Y, const int incY)
 {
 	AMPBLAS_CHECKED_CALL(ampblas::copy(N, (dcomplex*)X, incX, (dcomplex*)Y, incY));
+}
+
+//
+// AMP CBLAS DOT implementation file.
+// TODO: fix CHECKED macro or use function pointers...
+//
+
+// float ampblas_sdsdot(const int N, const float alpha, const float *X, const int incX, const float *Y, const int incY) {}
+
+double ampblas_dsdot(const int N, const float *X, const int incX, const float *Y, const int incY)
+{
+    double ret;
+    ret = ampblas::dot<float,double,ampblas::_detail::noop>(N,X,incX,Y,incY);
+    // AMPBLAS_CHECKED_CALL( );
+    return ret;
+}
+
+float ampblas_sdot(const int N, const float  *X, const int incX, const float  *Y, const int incY)
+{
+    float ret;
+    ret = ampblas::dot<float,float,ampblas::_detail::noop>(N,X,incX,Y,incY);
+    // AMPBLAS_CHECKED_CALL();
+    return ret;
+}
+
+double ampblas_ddot(const int N, const double *X, const int incX, const double *Y, const int incY)
+{   
+    double ret;
+    ret = ampblas::dot<double,double,ampblas::_detail::noop>(N,X,incX,Y,incY);
+    // AMPBLAS_CHECKED_CALL();
+    return ret;
+}
+
+//
+// AMP CBLAS GER implementation file
+// 
+
+void ampblas_sger(const enum AMPBLAS_ORDER order, const int M, const int N,
+                  const float alpha, const float *X, const int incX,
+                  const float *Y, const int incY, float *A, const int lda)
+{
+    ampblas::ger<float,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda);
+    // TODO: AMPBLAS_CHECKED_CALL
+}
+
+void ampblas_dger(const enum AMPBLAS_ORDER order, const int M, const int N,
+                  const double alpha, const double *X, const int incX,
+                  const double *Y, const int incY, double *A, const int lda)
+{
+    ampblas::ger<double,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda);
+    // TODO: AMPBLAS_CHECKED_CALL
+}
+
+//
+// AMP CBLAS NRM2 implementation file.
+//
+float ampblas_snrm2(const int N, const float* X, int incX )
+{
+    float ret = 0;
+    AMPBLAS_CHECKED_CALL(ret = ampblas::nrm2(N, X, incX));
+    return ret;
+}
+
+double ampblas_dnrm2(const int N, const double* X, int incX )
+{
+    double ret = 0;
+    AMPBLAS_CHECKED_CALL(ret = ampblas::nrm2(N, X, incX));
+    return ret;
+}
+
+//
+// AMP CBLAS ROT implementation file
+// 
+
+void ampblas_srot(const int N, float *X, const int incX, float *Y, const int incY, const float c, const float s)
+{
+    AMPBLAS_CHECKED_CALL(ampblas::rot<float>(N,X,incX,Y,incY,c,s));
+}
+
+void ampblas_drot(const int N, double *X, const int incX, double *Y, const int incY, const double c, const double s)
+{    
+    AMPBLAS_CHECKED_CALL(ampblas::rot<double>(N,X,incX,Y,incY,c,s));
+}
+
+//
+// AMP CBLAS ROTG implementation file
+// 
+
+void ampblas_srotg(float *a, float *b, float *c, float *s)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::rotg<float>(*a,*b,*c,*s) );
+}
+
+void ampblas_drotg(double *a, double *b, double *c, double *s)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::rotg<double>(*a,*b,*c,*s) );
+}
+
+// 
+// AMP CBLAS SCAL implementation file.
+// 
+void ampblas_sscal(const int N, const float alpha, float *X, const int incX)
+{
+    AMPBLAS_CHECKED_CALL(ampblas::scal(N, alpha, X, incX));
+}
+
+void ampblas_dscal(const int N, const double alpha, double *X, const int incX)
+{
+	AMPBLAS_CHECKED_CALL(ampblas::scal(N, alpha, X, incX));
+}
+
+void ampblas_cscal(const int N, const void *alpha, void *X, const int incX)
+{
+	const fcomplex falpha =*(fcomplex*)(alpha);
+	AMPBLAS_CHECKED_CALL(ampblas::scal(N, falpha, (fcomplex*)X, incX));
+}
+
+void ampblas_zscal(const int N, const void *alpha, void *X, const int incX)
+{
+    dcomplex dalpha =*(dcomplex*)(alpha);;
+	AMPBLAS_CHECKED_CALL(ampblas::scal(N, dalpha, (dcomplex*)X, incX));
+}
+
+void ampblas_csscal(const int N, const float alpha, void *X, const int incX)
+{
+    AMPBLAS_CHECKED_CALL(ampblas::scal<fcomplex>(N, alpha, (fcomplex*)X, incX));
+}
+
+void ampblas_zdscal(const int N, const double alpha, void *X, const int incX)
+{
+	AMPBLAS_CHECKED_CALL(ampblas::scal<dcomplex>(N, alpha, (dcomplex*)X, incX));
 }
 
 // 

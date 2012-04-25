@@ -37,20 +37,20 @@ private:
 public:
     typedef T   value_type;
 
-    complex(const T& real = T(), const T& imag = T()) restrict(amp, cpu) 
+    complex(const T& real = T(), const T& imag = T()) restrict(cpu, amp) 
         : real_val(real), imag_val(imag) 
     {
     }
 
     template<typename X>
-    complex(const complex<X>& rhs) restrict(amp, cpu)
+    complex(const complex<X>& rhs) restrict(cpu, amp)
         : real_val(rhs.real_val), imag_val(rhs.imag_val)
     {
     }
 
     // assign a complex
     template<typename X>
-    complex& operator=(const complex<X>& rhs) restrict(amp, cpu)
+    complex& operator=(const complex<X>& rhs) restrict(cpu, amp)
     {
         real_val = static_cast<T>(rhs.real_val);
         imag_val = static_cast<T>(rhs.imag_val);
@@ -59,7 +59,7 @@ public:
     }
 
     // assign a real
-    complex& operator=(const T& real) restrict(amp, cpu)
+    complex& operator=(const T& real) restrict(cpu, amp)
     {
         real_val = real;
         imag_val = T();
@@ -69,7 +69,7 @@ public:
 
     // add a complex
     template<typename X>
-    complex& operator+=(const complex<X>& rhs) restrict(amp, cpu)
+    complex& operator+=(const complex<X>& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto l_re = real_val;
@@ -84,7 +84,7 @@ public:
     }
 
     // add a real
-    complex& operator+=(const T& real) restrict(amp, cpu)
+    complex& operator+=(const T& real) restrict(cpu, amp)
     {
         real_val += real;
         return *this;
@@ -92,7 +92,7 @@ public:
 
     // subtract a complex
     template<typename X>
-    complex& operator-=(const complex<X>& rhs) restrict(amp, cpu)
+    complex& operator-=(const complex<X>& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto l_re = real_val;
@@ -107,7 +107,7 @@ public:
     }
 
     // subtract a real
-    complex& operator-=(const T& real) restrict(amp, cpu)
+    complex& operator-=(const T& real) restrict(cpu, amp)
     {
         real_val -= real;
         return *this;
@@ -115,7 +115,7 @@ public:
 
     // multiply a complex
     template<typename X>
-    complex& operator*=(const complex<X>& rhs) restrict(amp, cpu)
+    complex& operator*=(const complex<X>& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto l_re = real_val;
@@ -130,7 +130,7 @@ public:
     }
 
     // multiply a real
-    complex& operator*=(const T& rhs) restrict(amp, cpu)
+    complex& operator*=(const T& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto re = real_val;
@@ -144,7 +144,7 @@ public:
 
     // divide a complex
     template<typename X>
-    complex& operator/=(const complex<X>& rhs) restrict(amp, cpu)
+    complex& operator/=(const complex<X>& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto l_re = real_val;
@@ -159,7 +159,7 @@ public:
     }
 
     // divide a real
-    complex& operator/=(const T& rhs) restrict(amp, cpu)
+    complex& operator/=(const T& rhs) restrict(cpu, amp)
     {
         // Temporaries might help coalescing loads 
         auto re = real_val;
@@ -172,33 +172,33 @@ public:
     }
 
     // equal 
-    bool operator==(const complex& rhs) const restrict(amp, cpu)
+    bool operator==(const complex& rhs) const restrict(cpu, amp)
     {
         return (real_val == rhs.real_val && imag_val == rhs.imag_val);
     }
 
     // not equal
-    bool operator!=(const complex& rhs) const restrict(amp, cpu)
+    bool operator!=(const complex& rhs) const restrict(cpu, amp)
     {
         return !(operator==(rhs));
     }
 
-    T real() const restrict(amp, cpu) 
+    T real() const restrict(cpu, amp) 
     { 
         return real_val; 
     }
 
-    void real(const T& real) restrict(amp, cpu) 
+    void real(const T& real) restrict(cpu, amp) 
     { 
         real_val = real; 
     }
 
-    T imag() const restrict(amp, cpu) 
+    T imag() const restrict(cpu, amp) 
     { 
         return imag_val; 
     }
 
-    void imag(const T& imag) restrict(amp, cpu) 
+    void imag(const T& imag) restrict(cpu, amp) 
     { 
         imag_val = imag; 
     }
@@ -207,7 +207,7 @@ public:
 // operator + 
 // complex + complex
 template<typename T>
-inline complex<T> operator+(const complex<T>& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator+(const complex<T>& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto l_re = lhs.real();
@@ -219,7 +219,7 @@ inline complex<T> operator+(const complex<T>& lhs, const complex<T>& rhs) restri
 }
 // complex + real
 template<typename T>
-inline complex<T> operator+(const complex<T>& lhs, const T& rhs) restrict(amp, cpu) 
+inline complex<T> operator+(const complex<T>& lhs, const T& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = lhs.real();
@@ -229,7 +229,7 @@ inline complex<T> operator+(const complex<T>& lhs, const T& rhs) restrict(amp, c
 }
 // real + complex
 template<typename T>
-inline complex<T> operator+( const T& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator+( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();
@@ -241,7 +241,7 @@ inline complex<T> operator+( const T& lhs, const complex<T>& rhs) restrict(amp, 
 // operator - 
 // complex - complex
 template<typename T>
-inline complex<T> operator-(const complex<T>& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator-(const complex<T>& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto l_re = lhs.real();
@@ -253,7 +253,7 @@ inline complex<T> operator-(const complex<T>& lhs, const complex<T>& rhs) restri
 }
 // complex - real
 template<typename T>
-inline complex<T> operator-(const complex<T>& lhs, const T& rhs) restrict(amp, cpu) 
+inline complex<T> operator-(const complex<T>& lhs, const T& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = lhs.real();
@@ -263,7 +263,7 @@ inline complex<T> operator-(const complex<T>& lhs, const T& rhs) restrict(amp, c
 }
 // real - complex
 template<typename T>
-inline complex<T> operator-( const T& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator-( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();
@@ -275,7 +275,7 @@ inline complex<T> operator-( const T& lhs, const complex<T>& rhs) restrict(amp, 
 // operator * 
 // complex * complex
 template<typename T>
-inline complex<T> operator*(const complex<T>& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator*(const complex<T>& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto l_re = lhs.real();
@@ -287,7 +287,7 @@ inline complex<T> operator*(const complex<T>& lhs, const complex<T>& rhs) restri
 }
 // complex * real
 template<typename T>
-inline complex<T> operator*(const complex<T>& lhs, const T& rhs) restrict(amp, cpu) 
+inline complex<T> operator*(const complex<T>& lhs, const T& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = lhs.real();
@@ -297,7 +297,7 @@ inline complex<T> operator*(const complex<T>& lhs, const T& rhs) restrict(amp, c
 }
 // real * complex
 template<typename T>
-inline complex<T> operator*( const T& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator*( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();
@@ -309,7 +309,7 @@ inline complex<T> operator*( const T& lhs, const complex<T>& rhs) restrict(amp, 
 // operator / 
 // complex / complex
 template<typename T>
-inline complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto l_re = lhs.real();
@@ -321,7 +321,7 @@ inline complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) restri
 }
 // complex / real
 template<typename T>
-inline complex<T> operator/(const complex<T>& lhs, const T& rhs) restrict(amp, cpu) 
+inline complex<T> operator/(const complex<T>& lhs, const T& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = lhs.real();
@@ -331,7 +331,7 @@ inline complex<T> operator/(const complex<T>& lhs, const T& rhs) restrict(amp, c
 }
 // real / complex
 template<typename T>
-inline complex<T> operator/( const T& lhs, const complex<T>& rhs) restrict(amp, cpu) 
+inline complex<T> operator/( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();

@@ -179,6 +179,39 @@ inline concurrency::extent<1> make_extent(int n) restrict(cpu, amp)
 	return concurrency::extent<1>(n);
 }
 
+//
+// indexed_type
+//   A wrapper to represent the value and its position of an element in a container. 
+//   One usage is to find the index of the maximum value in a container. 
+//
+template <typename IndexType, typename T>
+struct indexed_type
+{
+    indexed_type() restrict(cpu, amp)
+        : idx(1), val(T())  {}
+
+    indexed_type(IndexType idx, const T& val) restrict(cpu, amp)
+        : idx(idx), val(val)  {}
+
+    bool operator>(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    {
+        return val > rhs.val; 
+    }
+
+    bool operator<(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    {
+        return val < rhs.val; 
+    }
+
+    bool operator==(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    {
+        return val == rhs.val; 
+    }
+
+    IndexType idx;
+    T val;
+};
+
 //----------------------------------------------------------------------------
 // stride_view
 //
