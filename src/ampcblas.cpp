@@ -26,12 +26,12 @@
 typedef ampblas::complex<float>  fcomplex;
 typedef ampblas::complex<double> dcomplex;
 
-#define AMPBLAS_CHECKED_CALL(expr) \
+#define AMPBLAS_CHECKED_CALL(...) \
     { \
         ampblas_result re = AMPBLAS_OK; \
         try \
         { \
-            (expr);\
+            (__VA_ARGS__);\
         } \
         catch (ampblas::ampblas_exception &e) \
         { \
@@ -62,14 +62,14 @@ extern "C"
 int ampblas_isamax(const int N, const float  *X, const int incX)
 {
     int ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::amax(N, X, incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, X, incX) );
     return ret;
 }
 
 int ampblas_idamax(const int N, const double *X, const int incX)
 {
     int ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::amax(N, X, incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, X, incX) );
     return ret;
 }
 
@@ -145,32 +145,30 @@ void ampblas_zcopy(const int N, const void *X, const int incX, void *Y, const in
 
 //
 // AMP CBLAS DOT implementation file.
-// TODO: fix CHECKED macro or use function pointers...
 //
 
-// float ampblas_sdsdot(const int N, const float alpha, const float *X, const int incX, const float *Y, const int incY) {}
+// float ampblas_sdsdot(const int N, const float alpha, const float *X, const int incX, const float *Y, const int incY) 
+// {
+// }
 
 double ampblas_dsdot(const int N, const float *X, const int incX, const float *Y, const int incY)
 {
-    double ret;
-    ret = ampblas::dot<float,double,ampblas::_detail::noop>(N,X,incX,Y,incY);
-    // AMPBLAS_CHECKED_CALL( );
+    double ret = 0;
+	AMPBLAS_CHECKED_CALL( ret = ampblas::dot<float,double,ampblas::_detail::noop>(N,X,incX,Y,incY) );
     return ret;
 }
 
 float ampblas_sdot(const int N, const float  *X, const int incX, const float  *Y, const int incY)
 {
-    float ret;
-    ret = ampblas::dot<float,float,ampblas::_detail::noop>(N,X,incX,Y,incY);
-    // AMPBLAS_CHECKED_CALL();
+    float ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<float,float,ampblas::_detail::noop>(N,X,incX,Y,incY) );
     return ret;
 }
 
 double ampblas_ddot(const int N, const double *X, const int incX, const double *Y, const int incY)
 {   
-    double ret;
-    ret = ampblas::dot<double,double,ampblas::_detail::noop>(N,X,incX,Y,incY);
-    // AMPBLAS_CHECKED_CALL();
+    double ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<double,double,ampblas::_detail::noop>(N,X,incX,Y,incY) );
     return ret;
 }
 
@@ -182,16 +180,14 @@ void ampblas_sger(const enum AMPBLAS_ORDER order, const int M, const int N,
                   const float alpha, const float *X, const int incX,
                   const float *Y, const int incY, float *A, const int lda)
 {
-    ampblas::ger<float,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda);
-    // TODO: AMPBLAS_CHECKED_CALL
+    AMPBLAS_CHECKED_CALL( ampblas::ger<float,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda) );
 }
 
 void ampblas_dger(const enum AMPBLAS_ORDER order, const int M, const int N,
                   const double alpha, const double *X, const int incX,
                   const double *Y, const int incY, double *A, const int lda)
 {
-    ampblas::ger<double,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda);
-    // TODO: AMPBLAS_CHECKED_CALL
+	AMPBLAS_CHECKED_CALL( ampblas::ger<double,ampblas::_detail::noop>(order,M,N,alpha,X,incX,Y,incY,A,lda) );
 }
 
 //
@@ -260,7 +256,7 @@ void ampblas_cscal(const int N, const void *alpha, void *X, const int incX)
 
 void ampblas_zscal(const int N, const void *alpha, void *X, const int incX)
 {
-    dcomplex dalpha =*(dcomplex*)(alpha);;
+    dcomplex dalpha =*(dcomplex*)(alpha);
 	AMPBLAS_CHECKED_CALL(ampblas::scal(N, dalpha, (dcomplex*)X, incX));
 }
 
@@ -272,6 +268,24 @@ void ampblas_csscal(const int N, const float alpha, void *X, const int incX)
 void ampblas_zdscal(const int N, const double alpha, void *X, const int incX)
 {
 	AMPBLAS_CHECKED_CALL(ampblas::scal<dcomplex>(N, alpha, (dcomplex*)X, incX));
+}
+
+//
+// AMP CBLAS SYR implementation file
+// 
+
+void ampblas_ssyr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N,
+                  const float alpha, const float *X, const int incX,
+                  float *A, const int lda)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::syr<float>(order,uplo,N,alpha,X,incX,A,lda) );
+}
+
+void ampblas_dsyr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N,
+                  const double alpha, const double *X, const int incX,
+                  double *A, const int lda)
+{
+	AMPBLAS_CHECKED_CALL( ampblas::syr<double>(order,uplo,N,alpha,X,incX,A,lda) );
 }
 
 // 
@@ -297,41 +311,30 @@ void ampblas_zswap(const int N, void *X, const int incX, void *Y, const int incY
 	AMPBLAS_CHECKED_CALL(ampblas::swap(N, (dcomplex*)X, incX, (dcomplex*)Y, incY));
 }
 
+//
+// AMP CBLAS GEMV implementation
+//
+void ampblas_sgemv(const enum AMPBLAS_ORDER order,
+                               const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
+                               const float alpha, const float *A, const int lda,
+                               const float *X, const int incX, const float beta,
+                               float *Y, const int incY)
+{
+	AMPBLAS_CHECKED_CALL(ampblas::gemv<float>(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY));
+}
+
+void ampblas_dgemv(const enum AMPBLAS_ORDER order,
+                               const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
+                               const double alpha, const double *A, const int lda,
+                               const double *X, const int incX, const double beta,
+                               double *Y, const int incY)
+{
+	AMPBLAS_CHECKED_CALL(ampblas::gemv<double>(order, TransA, M, N, alpha, A, lda, X, incX, beta, Y, incY));
+}
+
 // 
 // AMP CBLAS GEMM implementation
 // 
-bool check_gemm_arguments(const enum AMPBLAS_ORDER Order,
-                          const enum AMPBLAS_TRANSPOSE TransA,
-                          const enum AMPBLAS_TRANSPOSE TransB, 
-                          const int M, const int N, const int K, 
-                          const void *A, const int lda, 
-                          const void *B, const int ldb, 
-                          const void *C, const int ldc,
-                          const char *fname)
-{
-    int info = 0;
-
-    if      (M < 0) info = 3;
-    else if (N < 0) info = 4;
-    else if (K < 0) info = 5;
-    else if (A == nullptr)  info = 7;
-    else if (B == nullptr)  info = 9;
-    else if (C == nullptr)  info = 12;
-    else if (lda < ((Order == CblasRowMajor && TransA == CblasNoTrans ||
-                     Order == CblasColMajor && TransA == CblasTrans) ? K : M)) info = 8;
-    else if (ldb < ((Order == CblasRowMajor && TransB == CblasNoTrans ||
-                     Order == CblasColMajor && TransB == CblasTrans) ? N : K)) info = 10;
-    else if (ldc < (Order == CblasRowMajor ? N : M))                           info = 13;
-
-    if (info != 0)
-    {
-        ampblas_set_last_error(AMPBLAS_INVALID_ARG);
-        ampblas_xerbla(fname, &info);
-        return false;
-    }
-
-    return true;
-}
 
 void ampblas_sgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
                    const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N,
@@ -339,12 +342,7 @@ void ampblas_sgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE 
                    const int lda, const float *B, const int ldb,
                    const float beta, float *C, const int ldc)
 {
-    if (!check_gemm_arguments(Order, TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc, "AMPBLAS_SGEMM"))
-    {
-        return;
-    }
-
-    AMPBLAS_CHECKED_CALL(ampblas::gemm_impl(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc));
+    AMPBLAS_CHECKED_CALL(ampblas::gemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc));
 }
 
 void ampblas_dgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
@@ -353,12 +351,7 @@ void ampblas_dgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE 
                    const int lda, const double *B, const int ldb,
                    const double beta, double *C, const int ldc)
 {
-    if (!check_gemm_arguments(Order, TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc, "AMPBLAS_DGEMM"))
-    {
-        return;
-    }
-
-    AMPBLAS_CHECKED_CALL(ampblas::gemm_impl(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc));
+    AMPBLAS_CHECKED_CALL(ampblas::gemm(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc));
 }
 
 void ampblas_cgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
@@ -367,15 +360,9 @@ void ampblas_cgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE 
                    const int lda, const void *B, const int ldb,
                    const void *beta, void *C, const int ldc)
 {
-    if (!check_gemm_arguments(Order, TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc, "AMPBLAS_CGEMM"))
-    {
-        return;
-    }
-
 	fcomplex falpha =*(fcomplex*)(alpha);
 	fcomplex fbeta  =*(fcomplex*)(beta);
-    AMPBLAS_CHECKED_CALL(ampblas::gemm_impl(Order, TransA, TransB, M, N, K, falpha, (fcomplex*)A, lda, 
-                                            (fcomplex*)B, ldb, fbeta, (fcomplex*)C, ldc));
+    AMPBLAS_CHECKED_CALL(ampblas::gemm(Order, TransA, TransB, M, N, K, falpha, (fcomplex*)A, lda, (fcomplex*)B, ldb, fbeta, (fcomplex*)C, ldc));
 }
 
 void ampblas_zgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
@@ -384,15 +371,22 @@ void ampblas_zgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE 
                    const int lda, const void *B, const int ldb,
                    const void *beta, void *C, const int ldc)
 {
-    if (!check_gemm_arguments(Order, TransA, TransB, M, N, K, A, lda, B, ldb, C, ldc, "AMPBLAS_ZGEMM"))
-    {
-        return;
-    }
-
 	dcomplex dalpha =*(dcomplex*)(alpha);
 	dcomplex dbeta  =*(dcomplex*)(beta);
-    AMPBLAS_CHECKED_CALL(ampblas::gemm_impl(Order, TransA, TransB, M, N, K, dalpha, (dcomplex*)A, lda, 
-                                            (dcomplex*)B, ldb, dbeta, (dcomplex*)C, ldc));
+    AMPBLAS_CHECKED_CALL(ampblas::gemm(Order, TransA, TransB, M, N, K, dalpha, (dcomplex*)A, lda, (dcomplex*)B, ldb, dbeta, (dcomplex*)C, ldc));
+}
+
+//
+// AMP CBLAS TRSM implementation
+// 
+
+AMPBLAS_DLL void ampblas_strsm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
+                               const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA,
+                               const enum AMPBLAS_DIAG Diag, const int M, const int N,
+                               const float alpha, const float *A, const int lda,
+                               float *B, const int ldb)
+{
+	AMPBLAS_CHECKED_CALL( ampblas::trsm(Order,Side,Uplo,TransA,Diag,M,N,alpha,A,lda,B,ldb) );
 }
 
 } // extern "C"

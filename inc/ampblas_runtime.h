@@ -179,6 +179,11 @@ inline concurrency::extent<1> make_extent(int n) restrict(cpu, amp)
 	return concurrency::extent<1>(n);
 }
 
+inline concurrency::extent<2> make_extent(int m, int n) restrict(cpu, amp)
+{
+	return concurrency::extent<2>(n,m);
+}
+
 //
 // indexed_type
 //   A wrapper to represent the value and its position of an element in a container. 
@@ -229,7 +234,8 @@ public:
 	// The stride provided may be negative, in which case elements are retrieved in reverse order.
 	stride_view(const base_view_type& bv, int stride, const concurrency::extent<rank>& logical_extent) restrict(cpu,amp)
 		:base_view(bv), 
-		 stride(stride), 
+		 stride(stride),
+         view_extent(logical_extent),
 		 base_index(stride >= 0 ? concurrency::index<rank>() : -stride * last_index_of(logical_extent))
 	{
 	}
@@ -241,18 +247,53 @@ public:
 		return base_view[base_index + stride * idx];
 	}
 
+    __declspec(property(get=get_view_extent)) concurrency::extent<rank> extent;
+    concurrency::extent<rank> get_view_extent() const restrict(cpu,amp) 
+    { 
+        return view_extent; 
+    }
+
 private:
     stride_view& operator=(const stride_view& rhs);
 
-	const int stride;
-	const concurrency::index<rank> base_index;
 	base_view_type base_view;
+	const int stride;
+	concurrency::extent<rank> view_extent; // match interface of array_view
+	const concurrency::index<rank> base_index;
 };
 
 template <typename base_view_type>
 inline stride_view<base_view_type> make_stride_view(const base_view_type& bv, int stride, const concurrency::extent<base_view_type::rank>& logical_extent) restrict(cpu, amp)
 {
 	return stride_view<base_view_type>(bv, stride, logical_extent);
+}
+
+template <typename value_type>
+inline stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, value_type *X, int incX) restrict(cpu, amp)
+{
+    auto avX = get_array_view(X, N*abs(incX));
+    return make_stride_view(avX, incX, make_extent(N));
+}
+
+template <typename value_type>
+inline const stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, const value_type *X, int incX) restrict(cpu, amp)
+{
+    auto avX = get_array_view(X, N*abs(incX));
+    return make_stride_view(avX, incX, make_extent(N));
+}
+
+// A is assumed column-major
+template <typename value_type>
+inline concurrency::array_view<value_type,2> make_matrix_view( int M, int N, value_type *A, int ldA) restrict(cpu, amp) 
+{
+    return get_array_view(A, ldA*N).view_as(concurrency::extent<2>(N,ldA)).section(concurrency::extent<2>(N,M));
+}
+
+// A is assumed column-major
+template <typename value_type>
+inline const concurrency::array_view<value_type,2> make_matrix_view(int M, int N, const value_type *A, int ldA) restrict(cpu, amp) 
+{
+    return get_array_view(A, ldA*N).view_as(concurrency::extent<2>(N,ldA)).section(concurrency::extent<2>(N,M));
 }
 
 } // namespace ampblas

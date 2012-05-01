@@ -39,11 +39,11 @@
 //----------------------------------------------------------------------------
 // Enumerated and derived types
 //----------------------------------------------------------------------------
-enum AMPBLAS_ORDER {CblasRowMajor=101, CblasColMajor=102};
-enum AMPBLAS_TRANSPOSE {CblasNoTrans=111, CblasTrans=112, CblasConjTrans=113};
-enum AMPBLAS_UPLO {CblasUpper=121, CblasLower=122};
-enum AMPBLAS_DIAG {CblasNonUnit=131, CblasUnit=132};
-enum AMPBLAS_SIDE {CblasLeft=141, CblasRight=142};
+enum AMPBLAS_ORDER {AmpblasRowMajor=101, AmpblasColMajor=102};
+enum AMPBLAS_TRANSPOSE {AmpblasNoTrans=111, AmpblasTrans=112, AmpblasConjTrans=113};
+enum AMPBLAS_UPLO {AmpblasUpper=121, AmpblasLower=122};
+enum AMPBLAS_DIAG {AmpblasNonUnit=131, AmpblasUnit=132};
+enum AMPBLAS_SIDE {AmpblasLeft=141, AmpblasRight=142};
 
 //----------------------------------------------------------------------------
 // AMPBLAS error codes

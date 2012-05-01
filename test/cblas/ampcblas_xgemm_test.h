@@ -57,7 +57,7 @@ bool test_gemm_1()
 	EXECUTE_IF_OK(re, ampblas_bind(c, m * ldc * sizeof(T)));
 
     // Run test
-    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(AmpblasRowMajor, AmpblasNoTrans, AmpblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
 	EXECUTE_IF_OK(re, ampblas_synchronize(c, m * ldc * sizeof(T)));
 
     // Unbind buffers
@@ -122,7 +122,7 @@ bool test_gemm_2(compare_func compare_equal)
 	EXECUTE_IF_OK(re, ampblas_bind(c, m * ldc * sizeof(T)));
 
     // Run test
-    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(AmpblasRowMajor, AmpblasNoTrans, AmpblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
 	EXECUTE_IF_OK(re, ampblas_synchronize(c, m * ldc * sizeof(T)));
 
     // Unbind buffers
@@ -187,7 +187,7 @@ bool test_gemm_3()
 	EXECUTE_IF_OK(re, ampblas_bind(c, m * ldc * sizeof(T)));
 
     // Run test
-    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(AmpblasRowMajor, AmpblasNoTrans, AmpblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
 	EXECUTE_IF_OK(re, ampblas_synchronize(c, m * ldc * sizeof(T)));
 
     // Unbind buffers
@@ -252,7 +252,7 @@ bool test_gemm_4(compare_func compare_equal)
 	EXECUTE_IF_OK(re, ampblas_bind(c, m * ldc * sizeof(T)));
 
     // Run test
-    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
+    EXECUTE_KERNEL_IF_OK(re, ampblas_xgemm(AmpblasRowMajor, AmpblasNoTrans, AmpblasNoTrans, m, n, k, alpha, a, lda, b, ldb, beta, c, ldc));
 	EXECUTE_IF_OK(re, ampblas_synchronize(c, m * ldc * sizeof(T)));
 
     // Unbind buffers

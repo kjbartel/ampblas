@@ -40,10 +40,68 @@
 
 namespace ampblas
 {
+
+//----------------------------------------------------------------------------
+// AMPBLAS error checking
+//----------------------------------------------------------------------------
+inline void argument_error(std::string fname, int info)
+{
+	ampblas_xerbla(fname.c_str(), &info);
+	throw ampblas_exception(AMPBLAS_INVALID_ARG); 
+}
+
+inline void not_yet_implemented()
+{
+	throw ampblas_exception(AMPBLAS_NOT_SUPPORTED_FEATURE);
+}
+
 // The functions in the _detail namespace are used internally for other BLAS 
 // functions internally. 
 namespace _detail
 {
+
+// Generic fill algorithm on any multi-dimensional container
+template <int rank, typename value_type, typename x_type>
+inline void fill(const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
+{
+    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+    {
+        x[idx] = value;
+    });
+}
+
+// Generic scale algorithm on any multi-dimensional container
+template <int rank, typename value_type, typename x_type>
+inline void scale(const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
+{
+    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+    {
+        x[idx] *= value;
+    });
+}
+
+// Generic swap algorithm on any multi-dimensional container
+template <int rank, typename x_type, typename y_type>
+inline void swap(const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
+{
+    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+    {
+        auto tmp = y[idx];
+        y[idx] = x[idx];
+        x[idx] = tmp;
+    });
+}
+
+// Generic copy algorithm on any multi-dimensional container
+template <int rank, typename x_type, typename y_type>
+inline void copy(const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
+{
+    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+    {
+        y[idx] = x[idx];
+    });
+}
+
 template <typename T>
 inline T abs(const T& val) restrict(cpu, amp)
 {
@@ -92,60 +150,6 @@ struct noop
 {
     void operator()() const restrict (cpu, amp) {}
 };
-
-//-------------------------------------------------------------------------
-// SCAL
-//-------------------------------------------------------------------------
-
-// Generic SCAL algorithm on AMP array_view of type T
-template <int rank, typename alpha_type, typename value_type>
-void scal__1(alpha_type&& alpha, concurrency::array_view<value_type, rank>& av)
-{
-    concurrency::parallel_for_each(get_current_accelerator_view(), av.extent, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        av[idx] = alpha * av[idx];
-    });
-}
-
-// Generic SCAL algorithm for AMPBLAS matrix of type T 
-// All arguments are valid
-template <typename T>
-void scal_impl__1(const enum AMPBLAS_ORDER Order, 
-                  const int M, const int N, const T alpha, 
-                  const T  *C, const int ldc)
-{
-    assert(M >= 0 && N >= 0 && C != nullptr && ldc >= (Order == CblasRowMajor ? N : M));
-
-    if (M == 0 || N == 0 || alpha == T(1.0)) 
-    {
-        return;
-    }
-
-    int row = M;
-    int col = N;
-
-    if (Order == CblasColMajor)
-    {
-        std::swap(row, col);
-    }
-
-    auto avC = get_array_view(C, row*ldc).view_as(concurrency::extent<2>(row, ldc)).section(concurrency::extent<2>(row, col));
-    scal__1<2>(alpha, avC);
-}
-
-// Generic SCAL algorithm for AMPBLAS matrix of type T
-template <typename T>
-void scal(const enum AMPBLAS_ORDER Order, 
-          const int M, const int N, const T alpha, 
-          const T *C,  const int ldc)
-{
-    if (M < 0 || N < 0 || C == nullptr || ldc < (Order == CblasRowMajor ? N : M))
-    {
-        throw ampblas_exception("Invalid argument in scal", AMPBLAS_INVALID_ARG);
-    }
-
-    scal_impl(Order, M, N, alpha, C, ldc);
-}
 
 //
 // asum_helper
@@ -348,20 +352,20 @@ typename x_type::value_type asum(int n, const x_type& X)
     return _detail::reduce<tile_size, max_tiles, T, T>(n, X, func);
 }
 
-template <typename T>
-T asum(const int N, const T* X, const int incX)
+template <typename value_type>
+value_type asum(const int n, const value_type* x, const int incx)
 {
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
+    // quick return
+	if (n == 0 || incx <= 0)
+		return value_type();
 
-    if (incX == 1)
-    {
-        return asum(N, avX);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
-        return asum(N, avX1);
-    }
+	// argument check
+	if (x == nullptr)
+		argument_error("asum", 2);
+
+    auto x_vec = make_vector_view(n, x, incx);
+
+    return asum(n, x_vec);
 }
 
 //-------------------------------------------------------------------------
@@ -386,20 +390,18 @@ int_type amax(int n, const x_type& X)
     return _detail::reduce<tile_size, max_tiles, int_type, U, x_type>(n, X, func);
 }
 
-template <typename T>
-int amax(const int N, const T* X, const int incX)
+template <typename index_type, typename value_type>
+index_type amax(const int n, const value_type* x, const int incx)
 {
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
+	// Fortran indexing
+	if (n < 1 || incx <= 0)
+		return 1;
 
-    if (incX == 1)
-    {
-        return amax<int>(N, avX);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
-        return amax<int>(N, avX1);
-    }
+	if (x == nullptr)
+		argument_error("amax", 2);
+
+    auto x_vec = make_vector_view(n, x, incx);
+    return amax<index_type>(n, x_vec);
 } 
 
 //-------------------------------------------------------------------------
@@ -418,39 +420,23 @@ void axpy(const concurrency::extent<rank>& e, alpha_type&& alpha, x_type&& X, y_
 }
 
 // Generic AXPY algorithm for AMPBLAS arrays of type T
-template <typename T>
-void axpy(const int N, const T alpha, const T *X, const int incX, T *Y, const int incY)
+template <typename value_type>
+void axpy(int n, value_type alpha, const value_type *x, int incx, value_type *y, int incy)
 {
-    // check arguments
-    if (X == nullptr)
-    {
-        throw ampblas_exception("The 3rd argument in axpy is invalid", AMPBLAS_INVALID_ARG);
-    }
-
-    if (Y == nullptr)
-    {
-        throw ampblas_exception("The 5th argument in axpy is invalid", AMPBLAS_INVALID_ARG);
-    }
-
-    if (N <= 0 || alpha == T())
-    {
+	// quick return
+	if (n <= 0 || alpha == value_type())
         return;
-    }
 
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
-    concurrency::array_view<T> avY = get_array_view(Y, N*abs(incY));
+    // check arguments
+    if (x == nullptr)
+		argument_error("axpy", 3);
+    if (y == nullptr)
+		argument_error("axpy", 5);
 
-    if (incX == 1 && incY == 1)
-    {
-        axpy(make_extent(N), alpha, avX, avY);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
-        auto avY1 = make_stride_view(avY, incY, make_extent(N));
+    auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
 
-        axpy(make_extent(N), alpha, avX1, avY1);
-    }
+    axpy(make_extent(n), alpha, x_vec, y_vec); 
 }
 
 //-------------------------------------------------------------------------
@@ -459,50 +445,24 @@ void axpy(const int N, const T alpha, const T *X, const int incX, T *Y, const in
 //   overlpped.
 //-------------------------------------------------------------------------
 
-// Generic COPY algorithm on any multi-dimensional container
-template <int rank, typename x_type, typename y_type>
-void copy(const concurrency::extent<rank>& e, x_type&& X, y_type&& Y)
-{
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        Y[idx] = X[idx];
-    });
-}
-
 // Generic COPY algorithm for AMPBLAS arrays of type T
-template <typename T>
-void copy(const int N, const T *X, const int incX, T *Y, const int incY)
+template <typename value_type>
+void copy(int n, const value_type *x, int incx, value_type *y, int incy)
 {
+	// quick return
+	if (n <= 0)
+		return;
+
     // check arguments
-    if (X == nullptr)
-    {
-        throw ampblas_exception("The 2nd argument in copy is invalid", AMPBLAS_INVALID_ARG);
-    }
+    if (x == nullptr)
+		argument_error("copy", 2);
+    if (y == nullptr)
+        argument_error("copy", 4);
 
-    if (Y == nullptr)
-    {
-        throw ampblas_exception("The 4th argument in copy is invalid", AMPBLAS_INVALID_ARG);
-    }
+    auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
 
-    if (N <= 0 || X == Y) 
-    {
-        return;
-    }
-
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
-    concurrency::array_view<T> avY = get_array_view(Y, N*abs(incY));
-
-    if (incX == 1 && incY == 1)
-    {
-        avX.copy_to(avY);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
-        auto avY1 = make_stride_view(avY, incY, make_extent(N));
-
-        copy(make_extent(N), avX1, avY1);
-    }
+	_detail::copy(x_vec.extent, x_vec, y_vec);
 }
 
 //-------------------------------------------------------------------------
@@ -510,7 +470,7 @@ void copy(const int N, const T *X, const int incX, T *Y, const int incY)
 //   computes the dot product of two 1D arrays.
 //-------------------------------------------------------------------------
 
-template <typename array_type, typename ret_type, typename Operator>
+template <typename ret_type, typename operation, typename array_type>
 ret_type dot(int n, const array_type& X, const array_type& Y)
 {
     // static and const for view in parallel section 
@@ -580,67 +540,24 @@ ret_type dot(int n, const array_type& X, const array_type& Y)
     return std::accumulate(host_buffer.begin(), host_buffer.end(), ret_type());
 }
 
-// Generic DOT algorithm for AMPBLAS arrays of type T
-template <typename T, typename U, typename Operator>
-U dot(const int N, const T* X, const int incX, const T* Y, const int incY)
+// Generic DOT algorithm for two AMPBLAS arrays
+template <typename value_type, typename accumulation_type, typename operation>
+accumulation_type dot(int n, const value_type *x, int incx, const value_type *y, int incy)
 {
-    // check arguments
-    if (N <= 0) 
-        return T();
+	// quick return
+    if (x <= 0) 
+        return accumulation_type();
+ 
+    if (x == nullptr)
+		argument_error("dot", 2);
 
-    if (X == nullptr)
-        throw ampblas_exception("The 2rd argument in dot is invalid", AMPBLAS_INVALID_ARG);
+    if (y == nullptr)
+        argument_error("dot", 4);
 
-    if (Y == nullptr)
-        throw ampblas_exception("The 4th argument in dot is invalid", AMPBLAS_INVALID_ARG);
+    auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
 
-    auto avX = get_array_view(X, N*abs(incX));
-    auto avY = get_array_view(Y, N*abs(incY));
-
-    auto svvX = make_stride_view(avX, incX, make_extent(N));
-    auto svvY = make_stride_view(avY, incY, make_extent(N));
-
-    return dot< stride_view<concurrency::array_view<T>>, U, Operator >(N, svvX, svvY);
-}
-
-//-------------------------------------------------------------------------
-// GER
-//   performs the rank 1 operation
-//
-//     A := alpha*X*transpose(Y) + A,
-//
-//  where alpha is a scalar, X is an M element vector, Y is an N element
-//  vector and A is an M by N matrix.
-//-------------------------------------------------------------------------
-
-template <typename VectorType, typename MatrixType>
-void ger(int M, int N, typename VectorType::value_type alpha, VectorType& X, VectorType& Y, MatrixType& A)
-{
-    // configuration
-    concurrency::extent<2> extent(N, M);
-
-    concurrency::parallel_for_each (
-        get_current_accelerator_view(), 
-        extent,
-        [=] (concurrency::index<2> idx) restrict(amp)
-    {
-        A[ idx ] += alpha * X[ idx[1] ] * Y[ idx[0] ] ;
-    });
-}
-
-template <typename T, typename Operator>
-void ger(enum AMPBLAS_ORDER order, int M, int N, T alpha, const T* X, int incX, const T* Y, int incY, T* A, int ldA)
-{
-    // TODO: NYI
-    assert(order == CblasColMajor);
-
-    auto avX = get_array_view(X, M * abs(incX));
-    auto avY = get_array_view(Y, N * abs(incY));
-
-    // TODO: functionize this
-    auto avA = get_array_view(A, ldA*N).view_as(concurrency::extent<2>(N,M)).section(concurrency::extent<2>(N,M));
-
-    ger(M, N, alpha, avX, avY, avA);
+    return dot<accumulation_type,operation>(n, x_vec, y_vec);
 }
 
 //-------------------------------------------------------------------------
@@ -664,55 +581,58 @@ typename x_type::value_type nrm2(int n, const x_type& X)
 }
 
 // Generic NRM2 algorithm for AMPBLAS arrays of type T
-template <typename T>
-T nrm2(const int N, const T *X, const int incX)
+template <typename value_type>
+value_type nrm2(int n, const value_type *x, int incx)
 {
+	// quick return
+	if (n <= 0) 
+        return value_type();
+
     // check arguments
-    if (X == nullptr)
-    {
-        throw ampblas_exception("The 2nd argument in nrm2 is invalid", AMPBLAS_INVALID_ARG);
-    }
-
-    if (N <= 0) 
-    {
-        return T();
-    }
-
-    auto avX = get_array_view(X, N*abs(incX));
-    auto svvX = make_stride_view(avX, incX, make_extent(N));
-
-    return nrm2(N, svvX);
+    if (x == nullptr)
+		argument_error("nrm2", 2);
+        
+    auto x_vec = make_vector_view(n, x, incx);
+    
+	return nrm2(n, x_vec);
 }
 
 //-------------------------------------------------------------------------
 // ROT
 //-------------------------------------------------------------------------
 
-template <typename VectorType>
-void rot(int N, VectorType& X, VectorType& Y, typename VectorType::value_type c, typename VectorType::value_type s)
+template <int rank, typename x_type, typename y_type, typename c_type, typename s_type>
+void rot(const concurrency::extent<rank>& e, x_type&& x, y_type&& y, c_type&& c, s_type&& s)
 {
-    typedef typename VectorType::value_type T;
-
-    concurrency::extent<1> extent(N);
-
     concurrency::parallel_for_each(
         get_current_accelerator_view(), 
-        extent, 
-        [=] (concurrency::index<1> idx) restrict(amp) 
-    {
-        T temp = c * X[idx] + s * Y[idx];
-        Y[idx] = c * Y[idx] - s * X[idx];
-        X[idx] = temp;
-    });
+        e, 
+        [=] (concurrency::index<rank> idx) restrict(amp) 
+        {
+            auto temp = c * x[idx] + s * y[idx];
+            y[idx] = c * y[idx] - s * x[idx];
+            x[idx] = temp;
+        }
+    );
 }
 
-template <typename T>
-void rot(int N, T* X, int incX, T* Y, int incY, T c, T s)
+template <typename value_type>
+void rot(int n, value_type* x, int incx, value_type* y, int incy, value_type c, value_type s)
 {
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
-    concurrency::array_view<T> avY = get_array_view(Y, N*abs(incY));
+	// quick return
+	if (n <= 0)
+		return;
 
-    rot(N, avX, avY, c, s); 
+	// error check
+	if (x == nullptr)
+		argument_error("rot", 2);
+	if (y == nullptr)
+		argument_error("rot", 4);
+
+    auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
+
+    rot(make_extent(n), x_vec, y_vec, c, s); 
 }
 
 //-------------------------------------------------------------------------
@@ -762,43 +682,21 @@ void rotg(T& a, T& b, T& c, T& s)
 // SCAL
 //-------------------------------------------------------------------------
 
-// Generic SCAL algorithm on any multi-dimensional container
-template <int rank, typename alpha_type, typename x_type>
-void scal(const concurrency::extent<rank>& e, alpha_type&& alpha, x_type&& X)
+// Generic SCAL algorithm for AMPBLAS arrays of type value_type
+template <typename value_type>
+void scal(int n, value_type alpha, value_type *x, int incx)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        X[idx] *= alpha;
-    });
-}
-
-// Generic SCAL algorithm for AMPBLAS arrays of type T
-template <typename T>
-void scal(const int N, const T alpha, T *X, const int incX)
-{
-    // check arguments
-    if (X == nullptr)
-    {
-        throw ampblas_exception("The 3rd argument in copy is invalid", AMPBLAS_INVALID_ARG);
-    }
-
-    if (N <= 0) 
-    {
+	// quick return
+	if (n <= 0) 
         return;
-    }
 
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
+    // check arguments
+    if (x == nullptr)
+		argument_error("scal", 3);
 
-    if (incX == 1)
-    {
-        scal(make_extent(N), alpha, avX);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
+    auto x_vec = make_vector_view(n,x,incx);
 
-        scal(make_extent(N), alpha, avX1);
-    }
+    _detail::scale(make_extent(n), alpha, x_vec);
 }
 
 //-------------------------------------------------------------------------
@@ -807,53 +705,227 @@ void scal(const int N, const T alpha, T *X, const int incX)
 // runtime will throw an ampblas_exception when the buffers are bound. 
 //-------------------------------------------------------------------------
 
-// Generic SWAP algorithm on any multi-dimensional container
-template <int rank, typename x_type, typename y_type>
-void swap(const concurrency::extent<rank>& e, x_type&& X, y_type&& Y)
+template <typename value_type>
+void swap(int n, value_type *x, int incx, value_type *y, int incy)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+	// quick return
+	if (n <= 0 || x == y) 
+		return;
+ 
+    // check arguments
+    if (x == nullptr)
+		argument_error("swap", 2);
+	if (y == nullptr)
+		argument_error("swap", 3);
+
+    auto x_vec = make_vector_view(n,x,incx);
+    auto y_vec = make_vector_view(n,y,incy);
+    _detail::swap(make_extent(n), x_vec, y_vec);
+}
+
+//=============================================================================
+// BLAS 2
+//=============================================================================
+
+//-------------------------------------------------------------------------
+// GEMV
+//-------------------------------------------------------------------------
+
+template <typename alpha_type, typename x_vector_type, typename a_matrix_type, typename beta_type, typename y_vector_type>
+void gemv(alpha_type alpha, const a_matrix_type& a, const x_vector_type& x, beta_type beta, y_vector_type& y)
+{
+	concurrency::parallel_for_each(get_current_accelerator_view(), y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
     {
-        auto tmp = Y[idx];
-        Y[idx] = X[idx];
-        X[idx] = tmp;
+        alpha_type result = alpha_type();
+        
+        for (int n = 0; n < x.extent[0]; ++n)
+        {
+       		concurrency::index<2> a_idx(n, y_idx[0]);
+			concurrency::index<1> x_idx(n);
+
+            result += a[a_idx] * x[x_idx];
+        }
+
+        y[y_idx] = alpha * result + beta * y[y_idx];
     });
 }
 
-// Generic SWAP algorithm for AMPBLAS arrays of type T
-template <typename T>
-void swap(const int N, T *X, const int incX, T *Y, const int incY)
+template <typename value_type>
+void gemv(enum AMPBLAS_ORDER order, enum AMPBLAS_TRANSPOSE transa, int m, int n, value_type alpha, const value_type *a, int lda, const value_type *x, int incx, value_type beta, value_type* y, int incy)
 {
-    // check arguments
-    if (X == nullptr)
-    {
-        throw ampblas_exception("The 2nd argument in swap is invalid", AMPBLAS_INVALID_ARG);
-    }
+	// quick return
+	if (m == 0 || n == 0 || (alpha == value_type() && beta == value_type(1)))
+		return;
 
-    if (Y == nullptr)
-    {
-        throw ampblas_exception("The 4th argument in swap is invalid", AMPBLAS_INVALID_ARG);
-    }
+	// error check
+	if (order != AmpblasColMajor)
+        not_yet_implemented();
+	if (transa != AmpblasNoTrans)
+		not_yet_implemented();
+	if (m < 0)
+		argument_error("gemv", 3);
+	if (n < 0)
+		argument_error("gemv", 4);
+	if (a == nullptr)
+		argument_error("gemv", 6);
+	if (lda < (transa == AmpblasNoTrans ? m : n))
+		argument_error("gemv", 7);
+	if (x == nullptr)
+		argument_error("gemv", 8);
+	if (y == nullptr)
+		argument_error("gemv", 11);
 
-    if (N <= 0 || X == Y) 
+	auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(m, y, incy);
+    auto a_mat = make_matrix_view(m, n, a, lda);
+
+	if (alpha == value_type())
+	{
+		if (beta == value_type())
+			_detail::fill(y_vec.extent, value_type(), y_vec);
+		else
+			_detail::scale(y_vec.extent, beta, y_vec);
+
+		return;
+	}
+
+	gemv(alpha, a_mat, x_vec, beta, y_vec); 
+}
+
+
+//-------------------------------------------------------------------------
+// GER
+//   performs the rank 1 operation
+//
+//     A := alpha*X*transpose(Y) + A,
+//
+//  where alpha is a scalar, X is an M element vector, Y is an N element
+//  vector and A is an M by N matrix.
+//-------------------------------------------------------------------------
+
+template <typename alpha_type, typename x_vector_type, typename y_vector_type, typename a_matrix_type>
+void ger(alpha_type alpha, const x_vector_type& x, const y_vector_type& y, a_matrix_type& a )
+{
+    concurrency::parallel_for_each ( 
+        get_current_accelerator_view(), 
+        a.extent,
+        [=] (concurrency::index<2> idx_a) restrict(amp)
+        {
+            concurrency::index<1> idx_x(idx_a[1]);
+            concurrency::index<1> idx_y(idx_a[0]);
+
+            a[idx_a] += alpha * x[idx_x] * y[idx_y] ;
+        }
+    );
+}
+
+template <typename value_type, typename trans_op>
+void ger(enum AMPBLAS_ORDER order, int m, int n, value_type alpha, const value_type *x, int incx, const value_type *y, int incy, value_type *a, int lda)
+{
+	// recursive order adjustment
+	if (order == AmpblasRowMajor)
     {
+		ger<value_type,trans_op>(AmpblasColMajor, n, m, alpha, y, incy, x, incx, a, lda);
         return;
     }
 
-    concurrency::array_view<T> avX = get_array_view(X, N*abs(incX));
-    concurrency::array_view<T> avY = get_array_view(Y, N*abs(incY));
+	// quick return
+	if (m == 0 || n == 0 || alpha == value_type())
+		return;
 
-    if (incX == 1 && incY == 1)
-    {
-        swap(make_extent(N), avX, avY);
-    }
-    else
-    {
-        auto avX1 = make_stride_view(avX, incX, make_extent(N));
-        auto avY1 = make_stride_view(avY, incY, make_extent(N));
+	// argument check
+	if (m < 0)
+		argument_error("ger", 2);
+	if (n < 0)
+		argument_error("ger", 3);
+	if (x == nullptr)
+		argument_error("ger", 5);
+	if (y == nullptr)
+		argument_error("ger", 7);
+	if (a == nullptr)
+		argument_error("ger", 9);
+	if (lda < (order == AmpblasColMajor ? m : n))
+		argument_error("ger", 10);
 
-        swap(make_extent(N), avX1, avY1);
-    }
+	// create views
+	auto x_vec = make_vector_view(m, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
+    auto a_mat = make_matrix_view(m, n, a, lda);
+
+	// call generic implementation
+	ger(alpha, x_vec, y_vec, a_mat);
 }
+
+//-------------------------------------------------------------------------
+// SYMV
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// SYR
+//-------------------------------------------------------------------------
+
+template <enum AMPBLAS_UPLO uplo, typename alpha_type, typename x_vector_type, typename a_matrix_type>
+void syr(alpha_type alpha, const x_vector_type& x, a_matrix_type& a )
+{
+    concurrency::parallel_for_each (
+        get_current_accelerator_view(),
+        a.extent,
+        [=] (concurrency::index<2> idx_a) restrict(amp)
+        {
+            concurrency::index<1> idx_x(idx_a[1]); // "i"
+            concurrency::index<1> idx_xt(idx_a[0]); // "j"
+
+            if ( uplo == AmpblasUpper && idx_a[0] >= idx_a[1] ||
+                 uplo == AmpblasLower && idx_a[1] >= idx_a[0]
+               )
+                a[idx_a] += alpha * x[idx_x] * x[idx_xt];
+        }
+    );
+}
+
+template <typename value_type>
+void syr(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, int n, value_type alpha, const value_type *x, int incx, value_type *a, int lda)
+{
+	// recursive order adjustment
+	if (order == AmpblasRowMajor) // todo: implement row major
+    {
+        enum AMPBLAS_UPLO opposite = uplo == AmpblasUpper ? AmpblasLower : AmpblasUpper;
+		syr<value_type>(AmpblasRowMajor, opposite, n, alpha, x, incx, a, lda);
+        return;
+    }
+
+	// quick return
+	if (n == 0 || alpha == value_type())
+		return;
+
+	// argument check
+	if (n < 0)
+		argument_error("syr", 3);
+	if (x == nullptr)
+		argument_error("syr", 5);
+	if (a == nullptr)
+		argument_error("syr", 7);
+	if (lda < n)
+		argument_error("syr", 8);
+
+	// create views
+	auto x_vec = make_vector_view(n, x, incx);
+    auto a_mat = make_matrix_view(n, n, a, lda);
+
+	// call generic implementation
+	if ( uplo == AmpblasUpper )
+	    syr<AmpblasUpper>(alpha, x_vec, a_mat);
+	else
+	    syr<AmpblasLower>(alpha, x_vec, a_mat);
+}
+
+//-------------------------------------------------------------------------
+// TRMV
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// TRSV
+//-------------------------------------------------------------------------
 
 //=============================================================================
 // BLAS 3
@@ -863,120 +935,256 @@ void swap(const int N, T *X, const int incX, T *Y, const int incY)
 // GEMM
 //-------------------------------------------------------------------------
 
-// All kernels are implemented assuming RowMajor ordering, but are used to 
-// execute the corresponding ColumnMajor gemms. Here is the mapping:
-//
-//   RowMajor [type]: <--> Tranposed Equation: <--> ColumnMajor [type]: 
-//   ----------------      -------------------      -------------------
-//   C = A B     [NN]      C^T = B^T A^T            C = B A     [NN]
-//   C = A^T B   [TN]      C^T = B^T A              C = B A^T   [NT]
-//   C = A B^T   [NT]      C^T = B A^T              C = B^T A   [TN]
-//   C = A^T B^T [TT]      C^T = B A                C = B^T A^T [TT]
-//
-
 // Generic GEMM algorithm on AMP array_views of type value_type
-template <typename alpha_type, typename beta_type, typename value_type>
-void gemm(enum AMPBLAS_TRANSPOSE TransA, 
-    enum AMPBLAS_TRANSPOSE TransB, 
-    alpha_type&& alpha, 
-    beta_type&& beta, 
-    const concurrency::array_view<value_type, 2>& avA, 
-    const concurrency::array_view<value_type, 2>& avB, 
-    concurrency::array_view<value_type, 2>& avC)
+template <typename alpha_type, typename a_matrix_type, typename b_matrix_type, typename beta_type, typename c_matrix_type>
+void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, alpha_type alpha, const a_matrix_type& a, const b_matrix_type& b, beta_type beta, c_matrix_type& c)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), avC.extent, [=] (concurrency::index<2> idx) restrict(amp)
-    {
-        value_type result = value_type();
+    // matrix a is assumed column-major. a.extent<2> = [ a_col, a_lda ]
+	int k_max = (transa == AmpblasNoTrans ? a.extent[0] : a.extent[1]);
 
-        for(int k = 0; k < avA.extent[1]; ++k)
+	concurrency::parallel_for_each(get_current_accelerator_view(), c.extent, [=] (concurrency::index<2> c_idx) restrict(amp)
+	{
+		alpha_type result = alpha_type();
+
+		for (int k = 0; k < k_max; ++k)
+		{
+			concurrency::index<2> a_idx = (transa == AmpblasNoTrans ? concurrency::index<2>(k, c_idx[1]) : concurrency::index<2>(c_idx[1], k));
+			concurrency::index<2> b_idx = (transb == AmpblasNoTrans ? concurrency::index<2>(c_idx[0], k) : concurrency::index<2>(k, c_idx[0]));
+
+			result += a[a_idx] * b[b_idx];
+		}
+
+		c[c_idx] = alpha * result + beta * c[c_idx];
+	});
+}
+
+template <typename value_type>
+void gemm(enum AMPBLAS_ORDER order, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, int m, int n, int k, value_type alpha, const value_type *a, int lda, const value_type *b, int ldb, value_type beta, value_type *c, int ldc) 
+{
+	// recursive order adjustment 
+	if (order == AmpblasRowMajor)
+        gemm(AmpblasColMajor, transb, transa, n, m, k, alpha, b, ldb, a, lda, beta, c, ldc);
+
+    // quick return
+    if ((m == 0 || n == 0 || alpha == value_type() || k == 0) && beta == value_type(1))
+        return;
+
+	// error check
+	if (m < 0)		       
+		argument_error("GEMM", 4);
+	if (n < 0)        
+		argument_error("GEMM", 5);
+	if (k < 0)        
+		argument_error("GEMM", 6);
+	if (a == nullptr) 
+		argument_error("GEMM", 8);
+	if (lda < ((order == AmpblasRowMajor && transa == AmpblasNoTrans || order == AmpblasColMajor && transa == AmpblasTrans) ? k : m))
+		argument_error("GEMM", 9);
+	if (b == nullptr) 
+		argument_error("GEMM", 10);
+	if (ldb < ((order == AmpblasRowMajor && transb == AmpblasNoTrans || order == AmpblasColMajor && transb == AmpblasTrans) ? n : k)) 
+		argument_error("GEMM", 11);
+	if (c == nullptr) 
+		argument_error("GEMM", 13);
+	if (ldc < (order == AmpblasRowMajor ? n : m)) 
+		argument_error("GEMM", 14);
+
+	auto a_row = (transa == AmpblasNoTrans ? m : k);
+	auto a_col = (transa == AmpblasNoTrans ? k : m);   
+	auto b_row = (transb == AmpblasNoTrans ? k : n);
+	auto b_col = (transb == AmpblasNoTrans ? n : k);
+  
+	auto a_mat = make_matrix_view(a_row, a_col, a, lda);
+	auto b_mat = make_matrix_view(b_row, b_col, b, ldb);
+	auto c_mat = make_matrix_view(m, n, c, ldc);
+
+	if (alpha == value_type())
+	{
+		if (beta == value_type())
+			_detail::fill(c_mat.extent, value_type(), c_mat);
+		else
+			_detail::scale(c_mat.extent, beta, c_mat);
+
+		return;
+	}
+
+    gemm(transa, transb, alpha, a_mat, b_mat, beta, c_mat);
+}
+
+//-------------------------------------------------------------------------
+// SYMM
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// SYRK
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// SYR2K
+//-------------------------------------------------------------------------
+
+//-------------------------------------------------------------------------
+// TRSM
+// (Incomplete!)
+//-------------------------------------------------------------------------
+
+template <unsigned int tile_size, typename value_type>
+void trsm_left(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<value_type,2>& a, concurrency::array_view<value_type,2> b) 
+{
+    // TODO: support transposes
+    // TODO: proper wait() types
+    // TODO: combine pathes with better loop parameterization
+
+    // runtime sizes
+    unsigned int m = b.extent[1];
+    unsigned int n = b.extent[0];
+    unsigned int tiles = (n+tile_size-1)/tile_size;
+
+    // bounds checking not implemented yet
+    assert(m % tile_size == 0 && n % tile_size == 0);
+
+    // configuration
+    auto e = make_extent(tile_size, tile_size*tiles);
+	
+    concurrency::parallel_for_each ( 
+		get_current_accelerator_view(), 
+        e.tile<tile_size,tile_size>(),
+        [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
         {
-            concurrency::index<2> idxA = (TransA == CblasNoTrans ? concurrency::index<2>(idx[0], k) : concurrency::index<2>(k, idx[0]));
-            concurrency::index<2> idxB = (TransB == CblasNoTrans ? concurrency::index<2>(k, idx[1]) : concurrency::index<2>(idx[1], k));
+            // shared memory buffers
+            tile_static value_type a_tile[tile_size][tile_size];
+            tile_static value_type b_tile[tile_size][tile_size];
 
-            result += avA[idxA] * avB[idxB];
+            // local indexes
+            const int col = tid.local[0];
+            const int row = tid.local[1];
+
+            // per-thread common alias
+            value_type& a_local = a_tile[row][col];
+            value_type& b_local = b_tile[row][col];
+
+            // global j index
+            unsigned int j = tid.tile_origin[0];
+
+            // lower + no trans <==> upper + trans 
+            if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
+            {
+                // loop down by tiles
+                for (unsigned int i=0; i<m; i+=tile_size)
+                {
+                    // read tile at A(i,i) into local A
+                    a_local = a(concurrency::index<2>(i+row, i+col));
+
+                    // read tile at B(i,j) into local B
+                    b_local = b(concurrency::index<2>(j+row, i+col));
+                    tid.barrier.wait();
+
+                    // solve X(i,j) = B(i,j) \ A(i,i)
+                    if (col == 0)
+                    {
+                        // TODO: consider making this a function
+                        unsigned int jj = row;
+
+                        // loop down shared block
+                        for (unsigned int ii=0; ii<tile_size; ii++)
+                        {
+                            // elimation scalar
+                            value_type alpha = b_tile[jj][ii];
+                            if (diag == AmpblasNonUnit)
+                                alpha /= a_tile[ii][ii];
+
+                            b_tile[jj][ii] = alpha;
+
+                            // apply
+                            for (unsigned int kk=ii+1; kk<tile_size; kk++)
+                                b_tile[jj][kk] -= alpha * a_tile[ii][kk];
+                        }
+                    }
+
+                    // wait for local solve
+                    tid.barrier.wait();
+
+                    // write B(i,j)
+                    b(concurrency::index<2>(j+row, i+col)) = alpha * b_local;
+
+                    // apply B(k,j) -= B(i,j) * A(k,i) 
+                    for (unsigned int k=i+tile_size; k<m; k+=tile_size)
+                    {   
+                        // read tile at A(k,i) into local A
+                        a_local = a(concurrency::index<2>(i+row, k+col));
+                        tid.barrier.wait();
+
+                        // accumulate
+                        value_type sum = value_type();
+
+                        // TODO: unrollable?
+                        for (int l=0; l<tile_size; l++)
+                            sum += a_tile[l][col] * b_tile[row][l];
+
+                        // update
+                        b(concurrency::index<2>(j+row, k+col)) -= sum;
+
+                        // wait for a to finish being read
+                        tid.barrier.wait();
+                    }
+                }
+            }
+
+            // lower + trans <==> upper + no trans 
+            else
+            {
+               // TODO
+            }
         }
-
-        avC[idx] = alpha * result + beta * avC[idx];
-    });
+    );
 }
 
-// Matrices A, B and C are all RowMajor 
-// TODO: handle conjugate transpose 
-template<typename T>
-void gemm_impl(const enum AMPBLAS_TRANSPOSE TransA, 
-    const enum AMPBLAS_TRANSPOSE TransB, 
-    const int M, const int N, const int K, 
-    const T alpha, const T *A, const int lda, 
-    const T *B, const int ldb,
-    const T beta, T *C, const int ldc) 
+template <unsigned int tile_size, typename alpha_type, typename a_matrix_type, typename b_matrix_type>
+void trsm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, alpha_type alpha, const a_matrix_type& a, b_matrix_type& b)
 {
-    auto row_a = (TransA == CblasNoTrans ? M : K);
-    auto col_a = (TransA == CblasNoTrans ? K : M);
-    auto row_b = (TransB == CblasNoTrans ? K : N);
-    auto col_b = (TransB == CblasNoTrans ? N : K);
+	if (side == AmpblasLeft)
+    {
+        // assumed lower for now
+        trsm_left<tile_size>(uplo, transa, diag, alpha, a, b);
+	}
+	else
+	{
+	}
 
-    auto avA = get_array_view(A, row_a*lda).view_as(concurrency::extent<2>(row_a, lda)).section(concurrency::extent<2>(row_a, col_a));
-    auto avB = get_array_view(B, row_b*ldb).view_as(concurrency::extent<2>(row_b, ldb)).section(concurrency::extent<2>(row_b, col_b));
-    auto avC = get_array_view(C, M*ldc).view_as(concurrency::extent<2>(M, ldc)).section(concurrency::extent<2>(M, N));
-
-    gemm(TransA, TransB, alpha, beta, avA, avB, avC);
 }
 
-template<typename T>
-void gemm_impl(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
-    const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N,
-    const int K, const T alpha, const T *A,
-    const int lda, const T *B, const int ldb,
-    const T beta, T *C, const int ldc) 
+template <typename value_type>
+void trsm(enum AMPBLAS_ORDER /*order*/, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, int m, int n, value_type alpha, const value_type *a, int lda, value_type *b, int ldb)
 {
-    // Quick return
-    if (M == 0 || N == 0 || (alpha == T() || K == 0) && beta == T(1.0))
-    {
-        return;
-    }
+	// tuning sizes
+    static const unsigned int tile_size = 16;
 
-    if (alpha == T())
-    {
-        _detail::scal_impl__1(Order, M, N, beta, C, ldc);
-        return;
-    }
+	// recursive order adjustment 
+	// TODO:
 
-    // Normal operation
-    if (Order == CblasRowMajor)
-    {
-        gemm_impl(TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
-    }
-    else // CblasColMajor
-    {
-        gemm_impl(TransB, TransA, N, M, K, alpha, B, ldb, A, lda, beta, C, ldc);
-    }
+    // quick return
+	// TODO: 
+
+	// derived parameters
+	int k = (side == AmpblasLeft ? m : n);
+
+	// error check
+	// TODO:
+  
+	// amp data
+	auto a_mat = make_matrix_view(k, k, a, lda);
+	auto b_mat = make_matrix_view(m, n, b, ldb);
+
+	// special paths
+	// TODO:
+
+	// implementation
+	trsm<tile_size>(side, uplo, transa, diag, alpha, a_mat, b_mat);
 }
 
-// Generic GEMM algorithm for AMPBLAS arrays of type T
-template<typename T>
-void gemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
-    const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N,
-    const int K, const T alpha, const T *A,
-    const int lda, const T *B, const int ldb,
-    const T beta, T *C, const int ldc)
-{
-    if (M < 0 || 
-        N < 0 || 
-        K < 0 || 
-        A == nullptr || 
-        B == nullptr || 
-        C == nullptr ||
-        lda < ((Order == CblasRowMajor && TransA == CblasNoTrans ||
-        Order == CblasColMajor && TransA == CblasTrans) ? K : M) ||
-        ldb < ((Order == CblasRowMajor && TransB == CblasNoTrans ||
-        Order == CblasColMajor && TransB == CblasTrans) ? N : K) ||
-        ldc < (Order == CblasRowMajor ? N : M))
-    {
-        throw ampblas_exception("Invalid argument in gemm", AMPBLAS_INVALID_ARG);
-    }
-
-    gemm_impl(Order, TransA, TransB, M, N, K, alpha, A, lda, B, ldb, beta, C, ldc);
-}
+//-------------------------------------------------------------------------
+// TRMM
+//-------------------------------------------------------------------------
 
 
 } // namespace ampblas
