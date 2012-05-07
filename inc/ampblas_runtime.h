@@ -189,32 +189,32 @@ inline concurrency::extent<2> make_extent(int m, int n) restrict(cpu, amp)
 //   A wrapper to represent the value and its position of an element in a container. 
 //   One usage is to find the index of the maximum value in a container. 
 //
-template <typename IndexType, typename T>
+template <typename index_type, typename value_type>
 struct indexed_type
 {
     indexed_type() restrict(cpu, amp)
-        : idx(1), val(T())  {}
+        : idx(1), val(value_type())  {}
 
-    indexed_type(IndexType idx, const T& val) restrict(cpu, amp)
+    indexed_type(index_type idx, const value_type& val) restrict(cpu, amp)
         : idx(idx), val(val)  {}
 
-    bool operator>(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    bool operator>(const indexed_type<index_type,value_type>& rhs) const restrict(cpu, amp) 
     {
         return val > rhs.val; 
     }
 
-    bool operator<(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    bool operator<(const indexed_type<index_type,value_type>& rhs) const restrict(cpu, amp) 
     {
         return val < rhs.val; 
     }
 
-    bool operator==(const indexed_type<IndexType,T>& rhs) const restrict(cpu, amp) 
+    bool operator==(const indexed_type<index_type,value_type>& rhs) const restrict(cpu, amp) 
     {
         return val == rhs.val; 
     }
 
-    IndexType idx;
-    T val;
+    index_type idx;
+    value_type val;
 };
 
 //----------------------------------------------------------------------------
@@ -231,11 +231,14 @@ public:
 	typedef typename base_view_type::value_type value_type;
 	static const int rank = base_view_type::rank;
 
+    // match interface of array_view
+	concurrency::extent<rank> extent;
+
 	// The stride provided may be negative, in which case elements are retrieved in reverse order.
 	stride_view(const base_view_type& bv, int stride, const concurrency::extent<rank>& logical_extent) restrict(cpu,amp)
 		:base_view(bv), 
 		 stride(stride),
-         view_extent(logical_extent),
+         extent(logical_extent),
 		 base_index(stride >= 0 ? concurrency::index<rank>() : -stride * last_index_of(logical_extent))
 	{
 	}
@@ -247,19 +250,17 @@ public:
 		return base_view[base_index + stride * idx];
 	}
 
-    __declspec(property(get=get_view_extent)) concurrency::extent<rank> extent;
-    concurrency::extent<rank> get_view_extent() const restrict(cpu,amp) 
-    { 
-        return view_extent; 
+    const base_view_type& get_base_view() const
+    {
+        return base_view;
     }
 
 private:
     stride_view& operator=(const stride_view& rhs);
 
-	base_view_type base_view;
 	const int stride;
-	concurrency::extent<rank> view_extent; // match interface of array_view
 	const concurrency::index<rank> base_index;
+    base_view_type base_view;
 };
 
 template <typename base_view_type>
@@ -271,27 +272,25 @@ inline stride_view<base_view_type> make_stride_view(const base_view_type& bv, in
 template <typename value_type>
 inline stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, value_type *X, int incX) restrict(cpu, amp)
 {
-    auto avX = get_array_view(X, N*abs(incX));
+    auto avX = get_array_view(X, N*std::abs(incX));
     return make_stride_view(avX, incX, make_extent(N));
 }
 
 template <typename value_type>
 inline const stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, const value_type *X, int incX) restrict(cpu, amp)
 {
-    auto avX = get_array_view(X, N*abs(incX));
+    auto avX = get_array_view(X, N*std::abs(incX));
     return make_stride_view(avX, incX, make_extent(N));
 }
 
-// A is assumed column-major
 template <typename value_type>
-inline concurrency::array_view<value_type,2> make_matrix_view( int M, int N, value_type *A, int ldA) restrict(cpu, amp) 
+inline concurrency::array_view<value_type,2> make_matrix_view(int M, int N, value_type *A, int ldA) 
 {
     return get_array_view(A, ldA*N).view_as(concurrency::extent<2>(N,ldA)).section(concurrency::extent<2>(N,M));
 }
 
-// A is assumed column-major
 template <typename value_type>
-inline const concurrency::array_view<value_type,2> make_matrix_view(int M, int N, const value_type *A, int ldA) restrict(cpu, amp) 
+inline concurrency::array_view<const value_type,2> make_matrix_view(int M, int N, const value_type *A, int ldA) 
 {
     return get_array_view(A, ldA*N).view_as(concurrency::extent<2>(N,ldA)).section(concurrency::extent<2>(N,M));
 }

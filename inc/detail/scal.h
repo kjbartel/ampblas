@@ -13,43 +13,34 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * scal.h
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "../ampblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
-#include "detail/nrm2.h"
-#include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
+namespace ampblas {
 
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
+//-------------------------------------------------------------------------
+// SCAL
+//-------------------------------------------------------------------------
 
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
-#include "detail/syrk.h"
-#include "detail/trmm.h"
-#include "detail/trsm.h"
+// Generic SCAL algorithm for AMPBLAS arrays of type value_type
+template <typename value_type>
+void scal(int n, value_type alpha, value_type *x, int incx)
+{
+	// quick return
+	if (n <= 0) 
+        return;
 
-#endif //AMPBLAS_H
+    // check arguments
+    if (x == nullptr)
+		argument_error("scal", 3);
+
+    auto x_vec = make_vector_view(n,x,incx);
+
+    _detail::scale(make_extent(n), alpha, x_vec);
+}
+
+} // namespace ampblas

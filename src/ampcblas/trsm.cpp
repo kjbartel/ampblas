@@ -13,43 +13,25 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * trsm.cpp
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "ampcblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
-#include "detail/nrm2.h"
-#include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
-
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
-
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
-#include "detail/syrk.h"
-#include "detail/trmm.h"
 #include "detail/trsm.h"
 
-#endif //AMPBLAS_H
+extern "C" {
+
+void ampblas_strsm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int M, const int N, const float alpha, const float *A, const int lda, float *B, const int ldb)
+{
+	AMPBLAS_CHECKED_CALL( ampblas::trsm(Order,Side,Uplo,TransA,Diag,M,N,alpha,A,lda,B,ldb) );
+}
+
+void ampblas_dtrsm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int M, const int N, const double alpha, const double *A, const int lda, double *B, const int ldb)
+{
+	AMPBLAS_CHECKED_CALL( ampblas::trsm(Order,Side,Uplo,TransA,Diag,M,N,alpha,A,lda,B,ldb) );
+}
+
+} // extern "C"

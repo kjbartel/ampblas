@@ -13,43 +13,25 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * rot.cpp
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "ampcblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
-#include "detail/nrm2.h"
 #include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
 
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
+extern "C" {
 
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
-#include "detail/syrk.h"
-#include "detail/trmm.h"
-#include "detail/trsm.h"
+void ampblas_srot(const int N, float *X, const int incX, float *Y, const int incY, const float c, const float s)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::rot<float>(N,X,incX,Y,incY,c,s) );
+}
 
-#endif //AMPBLAS_H
+void ampblas_drot(const int N, double *X, const int incX, double *Y, const int incY, const double c, const double s)
+{    
+    AMPBLAS_CHECKED_CALL( ampblas::rot<double>(N,X,incX,Y,incY,c,s) );
+}
+
+} // extern "C"

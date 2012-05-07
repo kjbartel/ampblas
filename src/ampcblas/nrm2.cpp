@@ -13,43 +13,29 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * nrm2.cpp
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "ampcblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
 #include "detail/nrm2.h"
-#include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
 
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
+extern "C" {
 
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
-#include "detail/syrk.h"
-#include "detail/trmm.h"
-#include "detail/trsm.h"
+float ampblas_snrm2(const int N, const float* X, int incX )
+{
+    float ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::nrm2(N, X, incX) );
+    return ret;
+}
 
-#endif //AMPBLAS_H
+double ampblas_dnrm2(const int N, const double* X, int incX )
+{
+    double ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::nrm2(N, X, incX) );
+    return ret;
+}
+
+} // extern "C"

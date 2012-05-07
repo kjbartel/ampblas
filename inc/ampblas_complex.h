@@ -24,9 +24,25 @@
 
 #ifdef __cplusplus
 #include <ostream>
+#include <amp_math.h>
 
 namespace ampblas
 {
+
+namespace _detail 
+{
+    inline float sqrt(const float& val) restrict(cpu, amp)
+    {
+        return concurrency::fast_math::sqrt(val);
+    }
+
+    inline double sqrt(const double& val) restrict(cpu, amp)
+    {
+        return concurrency::precise_math::sqrt(val);
+    }
+
+} //namespace _detail
+
 template<typename T> 
 class complex
 {
@@ -340,6 +356,13 @@ inline complex<T> operator/( const T& lhs, const complex<T>& rhs) restrict(cpu, 
     return complex<T>(lhs/re, lhs/im);
 }
 
+// absolute value
+template<typename T>
+inline T abs(const complex<T>& val) restrict(cpu, amp)
+{
+    return _detail::sqrt(val.imag() * val.imag() + val.real() * val.real());
+}
+
 // operator <<
 template<typename T, typename charT, typename traits>
 inline std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, traits>& bos, const complex<T>& rhs) 
@@ -347,6 +370,20 @@ inline std::basic_ostream<charT, traits>& operator<<(std::basic_ostream<charT, t
     bos << "(" << rhs.real() << "," << rhs.imag() << ")";
     return bos;
 }
+
+// real to real (passthrough) typedef conversion
+template<typename T>
+struct real_type
+{
+    typedef typename T type;
+};
+
+// complex to real typedef conversion
+template<typename T>
+struct real_type<complex<T>>
+{
+    typedef typename T type;
+};
 
 } // ampblas
 

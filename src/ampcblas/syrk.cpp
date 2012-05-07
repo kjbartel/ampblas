@@ -13,43 +13,25 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * syrk.cpp
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "ampcblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
-#include "detail/nrm2.h"
-#include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
-
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
-
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
 #include "detail/syrk.h"
-#include "detail/trmm.h"
-#include "detail/trsm.h"
 
-#endif //AMPBLAS_H
+extern "C" {
+
+void ampblas_ssyrk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const float alpha, const float *A, const int lda, const float beta, float *C, const int ldc)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::syrk<float>(Order,Uplo,Trans,N,K,alpha,A,lda,beta,C,ldc) );
+}
+
+void ampblas_dsyrk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const double alpha, const double *A, const int lda, const double beta, double *C, const int ldc)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::syrk<double>(Order,Uplo,Trans,N,K,alpha,A,lda,beta,C,ldc) );
+}
+
+} // extern "C"

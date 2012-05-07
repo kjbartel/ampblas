@@ -13,43 +13,39 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
- *
- * ampblas.h 
- *
- * BLAS levels 1,2,3 library header for C++ AMP.
- *
- * This file contains C++ template BLAS APIs for generic data types.
+ * 
+ * copy.h
  *
  *---------------------------------------------------------------------------*/
 
-#ifndef AMPBLAS_H
-#define AMPBLAS_H
+#include "../ampblas_config.h"
 
-// BLAS 1
-#include "detail/amax.h"
-#include "detail/asum.h"
-#include "detail/axpy.h"
-#include "detail/copy.h"
-#include "detail/dot.h"
-#include "detail/nrm2.h"
-#include "detail/rot.h"
-#include "detail/scal.h"
-#include "detail/swap.h"
+namespace ampblas {
 
-// BLAS 2
-#include "detail/gemv.h"
-#include "detail/ger.h"
-#include "detail/symv.h"
-#include "detail/syr.h"
-#include "detail/trmv.h"
-#include "detail/trsv.h"
+//-------------------------------------------------------------------------
+// COPY
+//   copy a container to another container. The two containers cannot be 
+//   overlpped.
+//-------------------------------------------------------------------------
 
-// BLAS 3
-#include "detail/gemm.h"
-#include "detail/symm.h"
-#include "detail/syr2k.h"
-#include "detail/syrk.h"
-#include "detail/trmm.h"
-#include "detail/trsm.h"
+// Generic COPY algorithm for AMPBLAS arrays of type T
+template <typename value_type>
+void copy(int n, const value_type *x, int incx, value_type *y, int incy)
+{
+	// quick return
+	if (n <= 0)
+		return;
 
-#endif //AMPBLAS_H
+    // check arguments
+    if (x == nullptr)
+		argument_error("copy", 2);
+    if (y == nullptr)
+        argument_error("copy", 4);
+
+    auto x_vec = make_vector_view(n, x, incx);
+    auto y_vec = make_vector_view(n, y, incy);
+
+	_detail::copy(x_vec.extent, x_vec, y_vec);
+}
+
+} // namespace ampblas

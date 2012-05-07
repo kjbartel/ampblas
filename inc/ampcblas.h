@@ -47,15 +47,15 @@ AMPBLAS_DLL double ampblas_ddot(const int N, const double *X, const int incX,
 //
 // Functions having prefixes Z and C only
 //
-AMPBLAS_DLL void   ampblas_cdotu_sub(const int N, const void *X, const int incX,
-                                     const void *Y, const int incY, void *dotu);
-AMPBLAS_DLL void   ampblas_cdotc_sub(const int N, const void *X, const int incX,
-                                     const void *Y, const int incY, void *dotc);
+AMPBLAS_DLL void   ampblas_cdotu_sub(const int N, const ampblas_fcomplex *X, const int incX,
+                                     const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *dotu);
+AMPBLAS_DLL void   ampblas_cdotc_sub(const int N, const ampblas_fcomplex *X, const int incX,
+                                     const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *dotc);
 
-AMPBLAS_DLL void   ampblas_zdotu_sub(const int N, const void *X, const int incX,
-                                     const void *Y, const int incY, void *dotu);
-AMPBLAS_DLL void   ampblas_zdotc_sub(const int N, const void *X, const int incX,
-                                     const void *Y, const int incY, void *dotc);
+AMPBLAS_DLL void   ampblas_zdotu_sub(const int N, const ampblas_dcomplex *X, const int incX,
+                                     const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *dotu);
+AMPBLAS_DLL void   ampblas_zdotc_sub(const int N, const ampblas_dcomplex *X, const int incX,
+                                     const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *dotc);
 
 
 //
@@ -67,11 +67,11 @@ AMPBLAS_DLL float  ampblas_sasum(const int N, const float *X, const int incX);
 AMPBLAS_DLL double ampblas_dnrm2(const int N, const double *X, const int incX);
 AMPBLAS_DLL double ampblas_dasum(const int N, const double *X, const int incX);
 
-AMPBLAS_DLL float  ampblas_scnrm2(const int N, const void *X, const int incX);
-AMPBLAS_DLL float  ampblas_scasum(const int N, const void *X, const int incX);
+AMPBLAS_DLL float  ampblas_scnrm2(const int N, const ampblas_fcomplex *X, const int incX);
+AMPBLAS_DLL float  ampblas_scasum(const int N, const ampblas_fcomplex *X, const int incX);
 
-AMPBLAS_DLL double ampblas_dznrm2(const int N, const void *X, const int incX);
-AMPBLAS_DLL double ampblas_dzasum(const int N, const void *X, const int incX);
+AMPBLAS_DLL double ampblas_dznrm2(const int N, const ampblas_dcomplex *X, const int incX);
+AMPBLAS_DLL double ampblas_dzasum(const int N, const ampblas_dcomplex *X, const int incX);
 
 
 //
@@ -79,8 +79,9 @@ AMPBLAS_DLL double ampblas_dzasum(const int N, const void *X, const int incX);
 //
 AMPBLAS_DLL int ampblas_isamax(const int N, const float  *X, const int incX);
 AMPBLAS_DLL int ampblas_idamax(const int N, const double *X, const int incX);
-AMPBLAS_DLL int ampblas_icamax(const int N, const void   *X, const int incX);
-AMPBLAS_DLL int ampblas_izamax(const int N, const void   *X, const int incX);
+
+AMPBLAS_DLL int ampblas_icamax(const int N, const ampblas_fcomplex   *X, const int incX);
+AMPBLAS_DLL int ampblas_izamax(const int N, const ampblas_dcomplex   *X, const int incX);
 
 
 //----------------------------------------------------------------------------
@@ -104,19 +105,19 @@ AMPBLAS_DLL void ampblas_dcopy(const int N, const double *X, const int incX,
 AMPBLAS_DLL void ampblas_daxpy(const int N, const double alpha, const double *X,
                                const int incX, double *Y, const int incY);
 
-AMPBLAS_DLL void ampblas_cswap(const int N, void *X, const int incX, 
-                               void *Y, const int incY);
-AMPBLAS_DLL void ampblas_ccopy(const int N, const void *X, const int incX, 
-                               void *Y, const int incY);
-AMPBLAS_DLL void ampblas_caxpy(const int N, const void *alpha, const void *X,
-                               const int incX, void *Y, const int incY);
+AMPBLAS_DLL void ampblas_cswap(const int N, ampblas_fcomplex *X, const int incX, 
+                               ampblas_fcomplex *Y, const int incY);
+AMPBLAS_DLL void ampblas_ccopy(const int N, const ampblas_fcomplex *X, const int incX, 
+                               ampblas_fcomplex *Y, const int incY);
+AMPBLAS_DLL void ampblas_caxpy(const int N, const ampblas_fcomplex *alpha, const ampblas_fcomplex *X,
+                               const int incX, ampblas_fcomplex *Y, const int incY);
 
-AMPBLAS_DLL void ampblas_zswap(const int N, void *X, const int incX, 
-                               void *Y, const int incY);
-AMPBLAS_DLL void ampblas_zcopy(const int N, const void *X, const int incX, 
-                               void *Y, const int incY);
-AMPBLAS_DLL void ampblas_zaxpy(const int N, const void *alpha, const void *X,
-                               const int incX, void *Y, const int incY);
+AMPBLAS_DLL void ampblas_zswap(const int N, ampblas_dcomplex *X, const int incX, 
+                               ampblas_dcomplex *Y, const int incY);
+AMPBLAS_DLL void ampblas_zcopy(const int N, const ampblas_dcomplex *X, const int incX, 
+                               ampblas_dcomplex *Y, const int incY);
+AMPBLAS_DLL void ampblas_zaxpy(const int N, const ampblas_dcomplex *alpha, const ampblas_dcomplex *X,
+                               const int incX, ampblas_dcomplex *Y, const int incY);
 
 
 // 
@@ -142,10 +143,12 @@ AMPBLAS_DLL void ampblas_drotm(const int N, double *X, const int incX,
 //
 AMPBLAS_DLL void ampblas_sscal(const int N, const float alpha, float *X, const int incX);
 AMPBLAS_DLL void ampblas_dscal(const int N, const double alpha, double *X, const int incX);
-AMPBLAS_DLL void ampblas_cscal(const int N, const void *alpha, void *X, const int incX);
-AMPBLAS_DLL void ampblas_zscal(const int N, const void *alpha, void *X, const int incX);
-AMPBLAS_DLL void ampblas_csscal(const int N, const float alpha, void *X, const int incX);
-AMPBLAS_DLL void ampblas_zdscal(const int N, const double alpha, void *X, const int incX);
+
+AMPBLAS_DLL void ampblas_cscal(const int N, const ampblas_fcomplex *alpha, ampblas_fcomplex *X, const int incX);
+AMPBLAS_DLL void ampblas_zscal(const int N, const ampblas_dcomplex *alpha, ampblas_dcomplex *X, const int incX);
+
+AMPBLAS_DLL void ampblas_csscal(const int N, const float alpha, ampblas_fcomplex *X, const int incX);
+AMPBLAS_DLL void ampblas_zdscal(const int N, const double alpha, ampblas_dcomplex *X, const int incX);
 
 
 //----------------------------------------------------------------------------
@@ -223,69 +226,69 @@ AMPBLAS_DLL void ampblas_dtpsv(const enum AMPBLAS_ORDER order, const enum AMPBLA
 
 AMPBLAS_DLL void ampblas_cgemv(const enum AMPBLAS_ORDER order,
                                const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *X, const int incX, const void *beta,
-                               void *Y, const int incY);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *beta,
+                               ampblas_fcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_cgbmv(const enum AMPBLAS_ORDER order,
                                const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
-                               const int KL, const int KU, const void *alpha,
-                               const void *A, const int lda, const void *X,
-                               const int incX, const void *beta, void *Y, const int incY);
+                               const int KL, const int KU, const ampblas_fcomplex *alpha,
+                               const ampblas_fcomplex *A, const int lda, const ampblas_fcomplex *X,
+                               const int incX, const ampblas_fcomplex *beta, ampblas_fcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_ctrmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *A, const int lda, 
-                               void *X, const int incX);
+                               const int N, const ampblas_fcomplex *A, const int lda, 
+                               ampblas_fcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ctbmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const int K, const void *A, const int lda, 
-                               void *X, const int incX);
+                               const int N, const int K, const ampblas_fcomplex *A, const int lda, 
+                               ampblas_fcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ctpmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *Ap, void *X, const int incX);
+                               const int N, const ampblas_fcomplex *Ap, ampblas_fcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ctrsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *A, const int lda, void *X,
+                               const int N, const ampblas_fcomplex *A, const int lda, ampblas_fcomplex *X,
                                const int incX);
 AMPBLAS_DLL void ampblas_ctbsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const int K, const void *A, const int lda,
-                               void *X, const int incX);
+                               const int N, const int K, const ampblas_fcomplex *A, const int lda,
+                               ampblas_fcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ctpsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *Ap, void *X, const int incX);
+                               const int N, const ampblas_fcomplex *Ap, ampblas_fcomplex *X, const int incX);
 
 AMPBLAS_DLL void ampblas_zgemv(const enum AMPBLAS_ORDER order,
                                const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *X, const int incX, const void *beta,
-                               void *Y, const int incY);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *beta,
+                               ampblas_dcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_zgbmv(const enum AMPBLAS_ORDER order,
                                const enum AMPBLAS_TRANSPOSE TransA, const int M, const int N,
-                               const int KL, const int KU, const void *alpha,
-                               const void *A, const int lda, const void *X,
-                               const int incX, const void *beta, void *Y, const int incY);
+                               const int KL, const int KU, const ampblas_dcomplex *alpha,
+                               const ampblas_dcomplex *A, const int lda, const ampblas_dcomplex *X,
+                               const int incX, const ampblas_dcomplex *beta, ampblas_dcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_ztrmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *A, const int lda, 
-                               void *X, const int incX);
+                               const int N, const ampblas_dcomplex *A, const int lda, 
+                               ampblas_dcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ztbmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const int K, const void *A, const int lda, 
-                               void *X, const int incX);
+                               const int N, const int K, const ampblas_dcomplex *A, const int lda, 
+                               ampblas_dcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ztpmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *Ap, void *X, const int incX);
+                               const int N, const ampblas_dcomplex *Ap, ampblas_dcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ztrsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *A, const int lda, void *X,
+                               const int N, const ampblas_dcomplex *A, const int lda, ampblas_dcomplex *X,
                                const int incX);
 AMPBLAS_DLL void ampblas_ztbsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const int K, const void *A, const int lda,
-                               void *X, const int incX);
+                               const int N, const int K, const ampblas_dcomplex *A, const int lda,
+                               ampblas_dcomplex *X, const int incX);
 AMPBLAS_DLL void ampblas_ztpsv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag,
-                               const int N, const void *Ap, void *X, const int incX);
+                               const int N, const ampblas_dcomplex *Ap, ampblas_dcomplex *X, const int incX);
 
 
 // 
@@ -354,66 +357,66 @@ AMPBLAS_DLL void ampblas_dspr2(const enum AMPBLAS_ORDER order, const enum AMPBLA
 // Routines with C and Z prefixes only
 //
 AMPBLAS_DLL void ampblas_chemv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const void *alpha, const void *A,
-                               const int lda, const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const ampblas_fcomplex *alpha, const ampblas_fcomplex *A,
+                               const int lda, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *beta, ampblas_fcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_chbmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const int K, const void *alpha, const void *A,
-                               const int lda, const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const int K, const ampblas_fcomplex *alpha, const ampblas_fcomplex *A,
+                               const int lda, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *beta, ampblas_fcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_chpmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const void *alpha, const void *Ap,
-                               const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const ampblas_fcomplex *alpha, const ampblas_fcomplex *Ap,
+                               const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *beta, ampblas_fcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_cgeru(const enum AMPBLAS_ORDER order, const int M, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_cgerc(const enum AMPBLAS_ORDER order, const int M, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_cher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                              const int N, const float alpha, const void *X, const int incX,
-                              void *A, const int lda);
+                              const int N, const float alpha, const ampblas_fcomplex *X, const int incX,
+                              ampblas_fcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_chpr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                              const int N, const float alpha, const void *X,
-                              const int incX, void *A);
+                              const int N, const float alpha, const ampblas_fcomplex *X,
+                              const int incX, ampblas_fcomplex *A);
 AMPBLAS_DLL void ampblas_cher2(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_chpr2(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *Ap);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *X, const int incX,
+                               const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *Ap);
 
 AMPBLAS_DLL void ampblas_zhemv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const void *alpha, const void *A,
-                               const int lda, const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const ampblas_dcomplex *alpha, const ampblas_dcomplex *A,
+                               const int lda, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *beta, ampblas_dcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_zhbmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const int K, const void *alpha, const void *A,
-                               const int lda, const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const int K, const ampblas_dcomplex *alpha, const ampblas_dcomplex *A,
+                               const int lda, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *beta, ampblas_dcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_zhpmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                               const int N, const void *alpha, const void *Ap,
-                               const void *X, const int incX,
-                               const void *beta, void *Y, const int incY);
+                               const int N, const ampblas_dcomplex *alpha, const ampblas_dcomplex *Ap,
+                               const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *beta, ampblas_dcomplex *Y, const int incY);
 AMPBLAS_DLL void ampblas_zgeru(const enum AMPBLAS_ORDER order, const int M, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_zgerc(const enum AMPBLAS_ORDER order, const int M, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_zher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                              const int N, const double alpha, const void *X, const int incX,
-                              void *A, const int lda);
+                              const int N, const double alpha, const ampblas_dcomplex *X, const int incX,
+                              ampblas_dcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_zhpr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo,
-                              const int N, const double alpha, const void *X,
-                              const int incX, void *A);
+                              const int N, const double alpha, const ampblas_dcomplex *X,
+                              const int incX, ampblas_dcomplex *A);
 AMPBLAS_DLL void ampblas_zher2(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *A, const int lda);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *A, const int lda);
 AMPBLAS_DLL void ampblas_zhpr2(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const int N,
-                               const void *alpha, const void *X, const int incX,
-                               const void *Y, const int incY, void *Ap);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *X, const int incX,
+                               const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *Ap);
 
 
 //----------------------------------------------------------------------------
@@ -485,63 +488,63 @@ AMPBLAS_DLL void ampblas_dtrsm(const enum AMPBLAS_ORDER Order, const enum AMPBLA
 
 AMPBLAS_DLL void ampblas_cgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N,
-                               const int K, const void *alpha, const void *A,
-                               const int lda, const void *B, const int ldb,
-                               const void *beta, void *C, const int ldc);
+                               const int K, const ampblas_fcomplex *alpha, const ampblas_fcomplex *A,
+                               const int lda, const ampblas_fcomplex *B, const int ldb,
+                               const ampblas_fcomplex *beta, ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_csymm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *B, const int ldb, const void *beta,
-                               void *C, const int ldc);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               const ampblas_fcomplex *B, const int ldb, const ampblas_fcomplex *beta,
+                               ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_csyrk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                               const void *alpha, const void *A, const int lda,
-                               const void *beta, void *C, const int ldc);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               const ampblas_fcomplex *beta, ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_csyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                 const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                                const void *alpha, const void *A, const int lda,
-                                const void *B, const int ldb, const void *beta,
-                                void *C, const int ldc);
+                                const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                                const ampblas_fcomplex *B, const int ldb, const ampblas_fcomplex *beta,
+                                ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_ctrmm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_DIAG Diag, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               void *B, const int ldb);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               ampblas_fcomplex *B, const int ldb);
 AMPBLAS_DLL void ampblas_ctrsm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_DIAG Diag, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               void *B, const int ldb);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               ampblas_fcomplex *B, const int ldb);
 
 AMPBLAS_DLL void ampblas_zgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N,
-                               const int K, const void *alpha, const void *A,
-                               const int lda, const void *B, const int ldb,
-                               const void *beta, void *C, const int ldc);
+                               const int K, const ampblas_dcomplex *alpha, const ampblas_dcomplex *A,
+                               const int lda, const ampblas_dcomplex *B, const int ldb,
+                               const ampblas_dcomplex *beta, ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_zsymm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *B, const int ldb, const void *beta,
-                               void *C, const int ldc);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               const ampblas_dcomplex *B, const int ldb, const ampblas_dcomplex *beta,
+                               ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_zsyrk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                               const void *alpha, const void *A, const int lda,
-                               const void *beta, void *C, const int ldc);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               const ampblas_dcomplex *beta, ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_zsyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                 const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                                const void *alpha, const void *A, const int lda,
-                                const void *B, const int ldb, const void *beta,
-                                void *C, const int ldc);
+                                const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                                const ampblas_dcomplex *B, const int ldb, const ampblas_dcomplex *beta,
+                                ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_ztrmm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_DIAG Diag, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               void *B, const int ldb);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               ampblas_dcomplex *B, const int ldb);
 AMPBLAS_DLL void ampblas_ztrsm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA,
                                const enum AMPBLAS_DIAG Diag, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               void *B, const int ldb);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               ampblas_dcomplex *B, const int ldb);
 
 
 // 
@@ -549,33 +552,33 @@ AMPBLAS_DLL void ampblas_ztrsm(const enum AMPBLAS_ORDER Order, const enum AMPBLA
 //
 AMPBLAS_DLL void ampblas_chemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *B, const int ldb, const void *beta,
-                               void *C, const int ldc);
+                               const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                               const ampblas_fcomplex *B, const int ldb, const ampblas_fcomplex *beta,
+                               ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_cherk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                               const float alpha, const void *A, const int lda,
-                               const float beta, void *C, const int ldc);
+                               const float alpha, const ampblas_fcomplex *A, const int lda,
+                               const float beta, ampblas_fcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_cher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                 const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                                const void *alpha, const void *A, const int lda,
-                                const void *B, const int ldb, const float beta,
-                                void *C, const int ldc);
+                                const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda,
+                                const ampblas_fcomplex *B, const int ldb, const float beta,
+                                ampblas_fcomplex *C, const int ldc);
 
 AMPBLAS_DLL void ampblas_zhemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_SIDE Side,
                                const enum AMPBLAS_UPLO Uplo, const int M, const int N,
-                               const void *alpha, const void *A, const int lda,
-                               const void *B, const int ldb, const void *beta,
-                               void *C, const int ldc);
+                               const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                               const ampblas_dcomplex *B, const int ldb, const ampblas_dcomplex *beta,
+                               ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_zherk(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                               const double alpha, const void *A, const int lda,
-                               const double beta, void *C, const int ldc);
+                               const double alpha, const ampblas_dcomplex *A, const int lda,
+                               const double beta, ampblas_dcomplex *C, const int ldc);
 AMPBLAS_DLL void ampblas_zher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo,
                                 const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K,
-                                const void *alpha, const void *A, const int lda,
-                                const void *B, const int ldb, const double beta,
-                                void *C, const int ldc);
+                                const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda,
+                                const ampblas_dcomplex *B, const int ldb, const double beta,
+                                ampblas_dcomplex *C, const int ldc);
 #ifdef __cplusplus
 }
 #endif
