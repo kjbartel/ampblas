@@ -36,12 +36,12 @@ void ampblas_dcopy(const int N, const double *X, const int incX, double *Y, cons
 
 void ampblas_ccopy(const int N, const ampblas_fcomplex *X, const int incX, ampblas_fcomplex *Y, const int incY)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::copy(N, (fcomplex*)X, incX, (fcomplex*)Y, incY) );
+    AMPBLAS_CHECKED_CALL( ampblas::copy(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
 void ampblas_zcopy(const int N, const ampblas_dcomplex *X, const int incX, ampblas_dcomplex *Y, const int incY)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::copy(N, (dcomplex*)X, incX, (dcomplex*)Y, incY) );
+	AMPBLAS_CHECKED_CALL( ampblas::copy(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
 } // extern "C"

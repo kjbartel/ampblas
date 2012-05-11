@@ -34,25 +34,21 @@ float ampblas_sasum(const int N, const float *X, const int incX)
 double ampblas_dasum(const int N, const double *X, const int incX)
 {
     double ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N,X,incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, X, incX) );
     return ret;
 }
 
 float ampblas_scasum(const int N, const ampblas_fcomplex *X, const int incX)
 {
-    const fcomplex* cX = reinterpret_cast<const fcomplex*>(X);
-
     float ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N,cX,incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, ampblas_cast(X), incX) );
     return ret;
 }
 
 double ampblas_dzasum(const int N, const ampblas_dcomplex *X, const int incX)
 {
-    const dcomplex* zX = reinterpret_cast<const dcomplex*>(X);
-
     double ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N,zX,incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, ampblas_cast(X), incX) );
     return ret;
 }
 

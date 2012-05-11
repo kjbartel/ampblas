@@ -24,7 +24,7 @@
 
 extern "C" {
 
-int ampblas_isamax(const int N, const float  *X, const int incX)
+int ampblas_isamax(const int N, const float *X, const int incX)
 {
     int ret = 0;
     AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, X, incX) );
@@ -35,6 +35,20 @@ int ampblas_idamax(const int N, const double *X, const int incX)
 {
     int ret = 0;
     AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, X, incX) );
+    return ret;
+}
+
+int ampblas_icamax(const int N, const ampblas_fcomplex *X, const int incX)
+{
+    int ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, ampblas_cast(X), incX) );
+    return ret;
+}
+
+int ampblas_izamax(const int N, const ampblas_dcomplex *X, const int incX)
+{
+    int ret = 0;
+    AMPBLAS_CHECKED_CALL( ret = ampblas::amax<int>(N, ampblas_cast(X), incX) );
     return ret;
 }
 

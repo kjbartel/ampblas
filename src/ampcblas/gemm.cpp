@@ -36,16 +36,16 @@ void ampblas_dgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE 
 
 void ampblas_cgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N, const int K, const ampblas_fcomplex *alpha, const ampblas_fcomplex *A, const int lda, const ampblas_fcomplex *B, const int ldb, const ampblas_fcomplex *beta, ampblas_fcomplex *C, const int ldc)
 {
-    fcomplex falpha =*(fcomplex*)(alpha);
-    fcomplex fbeta  =*(fcomplex*)(beta);
-    AMPBLAS_CHECKED_CALL( ampblas::gemm(Order, TransA, TransB, M, N, K, falpha, (fcomplex*)A, lda, (fcomplex*)B, ldb, fbeta, (fcomplex*)C, ldc) );
+    const fcomplex calpha = *ampblas_cast(alpha);
+    const fcomplex cbeta  = *ampblas_cast(beta);
+    AMPBLAS_CHECKED_CALL( ampblas::gemm(Order, TransA, TransB, M, N, K, calpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, cbeta, ampblas_cast(C), ldc) );
 }
 
 void ampblas_zgemm(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_TRANSPOSE TransB, const int M, const int N, const int K, const ampblas_dcomplex *alpha, const ampblas_dcomplex *A, const int lda, const ampblas_dcomplex *B, const int ldb, const ampblas_dcomplex *beta, ampblas_dcomplex *C, const int ldc)
 {
-    dcomplex dalpha =*(dcomplex*)(alpha);
-    dcomplex dbeta  =*(dcomplex*)(beta);
-    AMPBLAS_CHECKED_CALL( ampblas::gemm(Order, TransA, TransB, M, N, K, dalpha, (dcomplex*)A, lda, (dcomplex*)B, ldb, dbeta, (dcomplex*)C, ldc) );
+    const dcomplex zalpha = *ampblas_cast(alpha);
+    const dcomplex zbeta  = *ampblas_cast(beta);
+    AMPBLAS_CHECKED_CALL( ampblas::gemm(Order, TransA, TransB, M, N, K, zalpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, zbeta, ampblas_cast(C), ldc) );
 }
 
 } // extern "C" 

@@ -24,8 +24,8 @@ namespace ampblas {
 namespace _detail {
 
 // Generic GEMM algorithm on AMP array_views of type value_type
-template <int tile_size, bool guarded, typename value_type>
-void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
+template <int tile_size, bool guarded, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, typename value_type>
+void gemm(value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
 {
     int k_max = (transa == AmpblasNoTrans ? a.extent[0] : a.extent[1]);
 
@@ -101,7 +101,32 @@ void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_ty
     const bool guarded = true;
 
     // main routine
-    _detail::gemm<tile_size,guarded>(transa, transb, alpha, a, b, beta, c);
+    if (transa == AmpblasNoTrans)
+    {
+        if (transb == AmpblasNoTrans)
+        {
+            // GEMM_NN
+            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasNoTrans>(alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasTrans)
+        {
+            // GEMM_NT
+            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasTrans>(alpha, a, b, beta, c);
+        }
+    }
+    else if (transa == AmpblasTrans)
+    {
+        if (transb == AmpblasNoTrans)
+        {
+            // GEMM_TN
+            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasNoTrans>(alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasTrans)
+        {
+            // GEMM_TT
+            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasTrans>(alpha, a, b, beta, c);
+        }
+    }
 }
 
 // Generic GEMM algorithm

@@ -36,24 +36,24 @@ void ampblas_dscal(const int N, const double alpha, double *X, const int incX)
 
 void ampblas_cscal(const int N, const ampblas_fcomplex *alpha, ampblas_fcomplex *X, const int incX)
 {
-	const fcomplex falpha =*(fcomplex*)(alpha);
-	AMPBLAS_CHECKED_CALL( ampblas::scal(N, falpha, (fcomplex*)X, incX) );
+	const fcomplex calpha = *ampblas_cast(alpha);
+	AMPBLAS_CHECKED_CALL( ampblas::scal(N, calpha, ampblas_cast(X), incX) );
 }
 
 void ampblas_zscal(const int N, const ampblas_dcomplex *alpha, ampblas_dcomplex *X, const int incX)
 {
-    dcomplex dalpha =*(dcomplex*)(alpha);
-	AMPBLAS_CHECKED_CALL( ampblas::scal(N, dalpha, (dcomplex*)X, incX) );
+    const dcomplex zalpha = *ampblas_cast(alpha);
+	AMPBLAS_CHECKED_CALL( ampblas::scal(N, zalpha, ampblas_cast(X), incX) );
 }
 
 void ampblas_csscal(const int N, const float alpha, ampblas_fcomplex *X, const int incX)
 {
-    AMPBLAS_CHECKED_CALL( ampblas::scal<fcomplex>(N, alpha, (fcomplex*)X, incX) );
+    AMPBLAS_CHECKED_CALL( ampblas::scal(N, alpha, ampblas_cast(X), incX) );
 }
 
 void ampblas_zdscal(const int N, const double alpha, ampblas_dcomplex *X, const int incX)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::scal<dcomplex>(N, alpha, (dcomplex*)X, incX) );
+	AMPBLAS_CHECKED_CALL( ampblas::scal(N, alpha, ampblas_cast(X), incX) );
 }
 
 } // extern "C"

@@ -36,14 +36,14 @@ void ampblas_daxpy(const int N, const double alpha, const double *X, const int i
 
 void ampblas_caxpy(const int N, const ampblas_fcomplex *alpha, const ampblas_fcomplex *X, const int incX, ampblas_fcomplex *Y, const int incY)
 {
-	fcomplex falpha =*(fcomplex*)(alpha);
-	AMPBLAS_CHECKED_CALL( ampblas::axpy(N, falpha, (fcomplex*)X, incX, (fcomplex*)Y, incY) );
+    const fcomplex calpha = *ampblas_cast(alpha);
+    AMPBLAS_CHECKED_CALL( ampblas::axpy(N, calpha, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
-void ampblas_zaxpy(const int N, const ampblas_dcomplex *alpha, const ampblas_dcomplex *X,const int incX, ampblas_dcomplex *Y, const int incY)
+void ampblas_zaxpy(const int N, const ampblas_dcomplex *alpha, const ampblas_dcomplex *X, const int incX, ampblas_dcomplex *Y, const int incY)
 {
-    dcomplex dalpha =*(dcomplex*)(alpha);
-	AMPBLAS_CHECKED_CALL( ampblas::axpy(N, dalpha, (dcomplex*)X, incX, (dcomplex*)Y, incY) );
+    const dcomplex zalpha = *ampblas_cast(alpha);
+	AMPBLAS_CHECKED_CALL( ampblas::axpy(N, zalpha, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
 } // extern "C"

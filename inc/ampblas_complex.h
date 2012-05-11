@@ -53,13 +53,13 @@ private:
 public:
     typedef T   value_type;
 
-    complex(const T& real = T(), const T& imag = T()) restrict(cpu, amp) 
+    explicit complex(const T& real = T(), const T& imag = T()) restrict(cpu, amp) 
         : real_val(real), imag_val(imag) 
     {
     }
 
     template<typename X>
-    complex(const complex<X>& rhs) restrict(cpu, amp)
+    explicit complex(const complex<X>& rhs) restrict(cpu, amp)
         : real_val(rhs.real_val), imag_val(rhs.imag_val)
     {
     }

@@ -423,7 +423,7 @@ template <typename value_type>
 void trsm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b)
 {
     // tuning parameters
-    const int tile_size = 16;
+    const int tile_size = 8;
     const bool guarded = true;
 
     // select proper kernel based on options

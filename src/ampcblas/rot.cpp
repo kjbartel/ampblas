@@ -26,12 +26,12 @@ extern "C" {
 
 void ampblas_srot(const int N, float *X, const int incX, float *Y, const int incY, const float c, const float s)
 {
-    AMPBLAS_CHECKED_CALL( ampblas::rot<float>(N,X,incX,Y,incY,c,s) );
+    AMPBLAS_CHECKED_CALL( ampblas::rot(N, X, incX, Y, incY, c, s) );
 }
 
 void ampblas_drot(const int N, double *X, const int incX, double *Y, const int incY, const double c, const double s)
 {    
-    AMPBLAS_CHECKED_CALL( ampblas::rot<double>(N,X,incX,Y,incY,c,s) );
+    AMPBLAS_CHECKED_CALL( ampblas::rot(N, X, incX, Y, incY, c, s) );
 }
 
 } // extern "C"

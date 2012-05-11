@@ -36,12 +36,12 @@ void ampblas_dswap(const int N, double *X, const int incX, double *Y, const int 
 
 void ampblas_cswap(const int N, ampblas_fcomplex *X, const int incX, ampblas_fcomplex *Y, const int incY)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::swap(N, (fcomplex*)X, incX, (fcomplex*)Y, incY) );
+	AMPBLAS_CHECKED_CALL( ampblas::swap(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
 void ampblas_zswap(const int N, ampblas_dcomplex *X, const int incX, ampblas_dcomplex *Y, const int incY)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::swap(N, (dcomplex*)X, incX, (dcomplex*)Y, incY) );
+	AMPBLAS_CHECKED_CALL( ampblas::swap(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
 } // extern "C"

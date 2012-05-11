@@ -35,7 +35,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
     int tiles_n = (n+tile_size-1)/tile_size;
 
     // configuration
-    auto e = make_extent(tile_size*tiles_m,tile_size*tiles_n);
+    auto e = make_extent(tile_size*tiles_m, tile_size*tiles_n);
 
     if (side == AmpblasLeft)
     {
@@ -46,19 +46,19 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
-                    tile_static value_type a[tile_size+1][tile_size]; // "a" tile
+                    tile_static value_type a[tile_size][tile_size]; // "a" tile
                     tile_static value_type b[tile_size][tile_size]; // "b" tile
 
-                    auto i = idx_b.local[1];
-                    auto j = idx_b.local[0];
-                    auto tile_i = idx_b.tile[1];
-                    auto tile_i_origin = idx_b.tile_origin[1];
-                    auto global_i = idx_b.global[1];
-                    auto global_j = idx_b.global[0];
+                    const int i = idx_b.local[1];
+                    const int j = idx_b.local[0];
+                    const int tile_i = idx_b.tile[1];
+                    const int tile_i_origin = idx_b.tile_origin[1];
+                    const int global_i = idx_b.global[1];
+                    const int global_j = idx_b.global[0];
 
                     value_type& a_local = (transa == AmpblasNoTrans ? a[i][j] : a[j][i]);
 
-                    auto out = value_type(0);
+                    value_type out = value_type();
 
                     auto tile_origin = 0;
                     for ( auto tile=0; tile<=tile_i; ++tile, tile_origin+=tile_size )
@@ -111,19 +111,19 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
-                    tile_static value_type a[tile_size+1][tile_size]; // "a" tile
+                    tile_static value_type a[tile_size][tile_size]; // "a" tile
                     tile_static value_type b[tile_size][tile_size]; // "b" tile
 
-                    auto i = idx_b.local[1];
-                    auto j = idx_b.local[0];
-                    auto tile_i = idx_b.tile[1];
-                    auto tile_i_origin = idx_b.tile_origin[1];
-                    auto global_i = idx_b.global[1];
-                    auto global_j = idx_b.global[0];
+                    const int i = idx_b.local[1];
+                    const int j = idx_b.local[0];
+                    const int tile_i = idx_b.tile[1];
+                    const int tile_i_origin = idx_b.tile_origin[1];
+                    const int global_i = idx_b.global[1];
+                    const int global_j = idx_b.global[0];
 
                     value_type& a_local = (transa == AmpblasNoTrans ? a[i][j] : a[j][i]);
 
-                    auto out = value_type(0);
+                    value_type out = value_type();
 
                     auto tile_origin = tile_i*tile_size;
                     for ( auto tile=tile_i; tile<tiles_m; ++tile, tile_origin+=tile_size )
@@ -179,19 +179,19 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
-                    tile_static value_type a[tile_size+1][tile_size]; // "a" tile
+                    tile_static value_type a[tile_size][tile_size]; // "a" tile
                     tile_static value_type b[tile_size][tile_size]; // "b" tile
 
-                    auto i = idx_b.local[1];
-                    auto j = idx_b.local[0];
-                    auto tile_j = idx_b.tile[0];
-                    auto tile_j_origin = idx_b.tile_origin[0];
-                    auto global_i = idx_b.global[1];
-                    auto global_j = idx_b.global[0];
+                    const int i = idx_b.local[1];
+                    const int j = idx_b.local[0];
+                    const int tile_j = idx_b.tile[0];
+                    const int tile_j_origin = idx_b.tile_origin[0];
+                    const int global_i = idx_b.global[1];
+                    const int global_j = idx_b.global[0];
 
                     value_type& a_local = (transa == AmpblasNoTrans ? a[i][j] : a[j][i]);
 
-                    auto out = value_type(0);
+                    value_type out = value_type();
 
                     auto tile_origin = tile_j*tile_size;
                     for ( auto tile=tile_j; tile<tiles_n; ++tile, tile_origin+=tile_size )
@@ -244,19 +244,19 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
-                    tile_static value_type a[tile_size+1][tile_size]; // "a" tile
+                    tile_static value_type a[tile_size][tile_size]; // "a" tile
                     tile_static value_type b[tile_size][tile_size]; // "b" tile
 
-                    auto i = idx_b.local[1];
-                    auto j = idx_b.local[0];
-                    auto tile_j = idx_b.tile[0];
-                    auto tile_j_origin = idx_b.tile_origin[0];
-                    auto global_i = idx_b.global[1];
-                    auto global_j = idx_b.global[0];
+                    const int i = idx_b.local[1];
+                    const int j = idx_b.local[0];
+                    const int tile_j = idx_b.tile[0];
+                    const int tile_j_origin = idx_b.tile_origin[0];
+                    const int global_i = idx_b.global[1];
+                    const int global_j = idx_b.global[0];
 
                     value_type& a_local = (transa == AmpblasNoTrans ? a[i][j] : a[j][i]);
 
-                    auto out = value_type(0);
+                    value_type out = value_type();
 
                     auto tile_origin = 0;
                     for ( auto tile=0; tile<=tile_j; ++tile, tile_origin+=tile_size )
@@ -273,7 +273,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                         else
                         {
                             // off diagonal, load
-                            if ( transa == AmpblasNoTrans )
+                            if (transa == AmpblasNoTrans)
                             {
                                 auto a_idx = concurrency::index<2>(global_j,tile_origin+i);
                                 a_local = _detail::guarded_read<true>(a_mat,a_idx);
@@ -295,7 +295,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
 
                         idx_b.barrier.wait_with_tile_static_memory_fence();
                     }
-                    if ( global_i<m && global_j<n )
+                    if (global_i<m && global_j<n)
                     {
                         c_mat[idx_b] = out;
                     }

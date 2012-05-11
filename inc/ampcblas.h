@@ -80,8 +80,8 @@ AMPBLAS_DLL double ampblas_dzasum(const int N, const ampblas_dcomplex *X, const 
 AMPBLAS_DLL int ampblas_isamax(const int N, const float  *X, const int incX);
 AMPBLAS_DLL int ampblas_idamax(const int N, const double *X, const int incX);
 
-AMPBLAS_DLL int ampblas_icamax(const int N, const ampblas_fcomplex   *X, const int incX);
-AMPBLAS_DLL int ampblas_izamax(const int N, const ampblas_dcomplex   *X, const int incX);
+AMPBLAS_DLL int ampblas_icamax(const int N, const ampblas_fcomplex *X, const int incX);
+AMPBLAS_DLL int ampblas_izamax(const int N, const ampblas_dcomplex *X, const int incX);
 
 
 //----------------------------------------------------------------------------

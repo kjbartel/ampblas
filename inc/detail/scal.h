@@ -27,8 +27,8 @@ namespace ampblas {
 //-------------------------------------------------------------------------
 
 // Generic SCAL algorithm for AMPBLAS arrays of type value_type
-template <typename value_type>
-void scal(int n, value_type alpha, value_type *x, int incx)
+template <typename value_type, typename scalar_type>
+void scal(int n, scalar_type alpha, value_type *x, int incx)
 {
 	// quick return
 	if (n <= 0) 

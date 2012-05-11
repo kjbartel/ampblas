@@ -26,12 +26,22 @@ extern "C" {
 
 void ampblas_strmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int N, const float *A, const int lda, float *X, const int incX)
 {
-    AMPBLAS_CHECKED_CALL(ampblas::trmv(order, Uplo, TransA, Diag, N, A, lda, X, incX));
+    AMPBLAS_CHECKED_CALL( ampblas::trmv(order, Uplo, TransA, Diag, N, A, lda, X, incX) );
 }
 
 void ampblas_dtrmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int N, const double *A, const int lda, double *X, const int incX)
 {
-    AMPBLAS_CHECKED_CALL(ampblas::trmv(order, Uplo, TransA, Diag, N, A, lda, X, incX));
+    AMPBLAS_CHECKED_CALL( ampblas::trmv(order, Uplo, TransA, Diag, N, A, lda, X, incX) );
+}
+
+void ampblas_ctrmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int N, const ampblas_fcomplex *A, const int lda, ampblas_fcomplex *X, const int incX)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::trmv(order, Uplo, TransA, Diag, N, ampblas_cast(A), lda, ampblas_cast(X), incX) );
+}
+
+void ampblas_ztrmv(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE TransA, const enum AMPBLAS_DIAG Diag, const int N, const ampblas_dcomplex *A, const int lda, ampblas_dcomplex *X, const int incX)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::trmv(order, Uplo, TransA, Diag, N, ampblas_cast(A), lda, ampblas_cast(X), incX) );
 }
 
 } // extern "C"
