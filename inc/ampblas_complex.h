@@ -162,14 +162,15 @@ public:
     template<typename X>
     complex& operator/=(const complex<X>& rhs) restrict(cpu, amp)
     {
-        // Temporaries might help coalescing loads 
-        auto l_re = real_val;
-        auto l_im = imag_val;
-        auto r_re = rhs.real_val;
-        auto r_im = rhs.imag_val;
+        X a = real_val;
+        X b = imag_val;
+        X c = rhs.real_val;
+        X d = rhs.imag_val;
 
-        real_val = l_re/static_cast<T>(r_re) - l_im/static_cast<T>(r_im);
-        imag_val = l_re/static_cast<T>(r_im) + l_im/static_cast<T>(r_re);
+        X inv_conj = X(1) / (c*c + d*d);
+
+        real_val = (a*c + b*d) * inv_conj;
+        imag_val = (b*c - a*d) * inv_conj;
 
         return *this;
     }
@@ -328,13 +329,20 @@ template<typename T>
 inline complex<T> operator/(const complex<T>& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
-    auto l_re = lhs.real();
-    auto l_im = lhs.imag();
-    auto r_re = rhs.real();
-    auto r_im = rhs.imag();
+    T a = lhs.real_val;
+    T b = lhs.imag_val;
+    T c = rhs.real_val;
+    T d = rhs.imag_val;
 
-    return complex<T>(l_re/r_re - l_im/r_im, l_re/r_im + l_im/r_re);
+    T inv_conj = T(1) / (c*c + d*d);
+
+    complex<T> ret;
+    ret.real_val = (a*c + b*d) * inv_conj;
+    ret.imag_val = (b*c - a*d) * inv_conj;
+
+    return ret;
 }
+
 // complex / real
 template<typename T>
 inline complex<T> operator/(const complex<T>& lhs, const T& rhs) restrict(cpu, amp) 
@@ -347,7 +355,7 @@ inline complex<T> operator/(const complex<T>& lhs, const T& rhs) restrict(cpu, a
 }
 // real / complex
 template<typename T>
-inline complex<T> operator/( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
+inline complex<T> operator/(const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();
