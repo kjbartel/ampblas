@@ -23,7 +23,7 @@
 namespace ampblas {
 namespace _detail {
 
-template<typename ret_type, typename value_type, typename x_type, typename functor>
+template<typename ret_type, typename value_type, typename x_type, typename functor, typename trans_op>
 struct dot_helper
 {
     dot_helper(const value_type& value, const functor& sum_op) restrict(cpu, amp) 
@@ -32,8 +32,8 @@ struct dot_helper
 
     // x_type must be a pair of the two vector types
     void local_reduce(ret_type& lhs, int idx, const x_type& X) const restrict(cpu, amp)
-    {
-        lhs += value_type(X.first[concurrency::index<1>(idx)]) * value_type(X.second[concurrency::index<1>(idx)]);
+    {        
+        lhs += trans_op::op(value_type(X.first[concurrency::index<1>(idx)])) * value_type(X.second[concurrency::index<1>(idx)]);
     }
 
     // returns the summation of all values in a container
@@ -53,23 +53,34 @@ struct dot_helper
 //   computes the dot product of two 1D arrays.
 //-------------------------------------------------------------------------
 
-template <typename ret_type, typename operation, typename array_type>
-ret_type dot(int n, const array_type& X, const array_type& Y)
+template <typename ret_type, typename trans_op, typename array_type>
+ret_type dot(const concurrency::accelerator_view& av, const array_type& x, const array_type& y)
 {
     typedef typename array_type::value_type T;
+
+    _detail::require_matched_extent(x, y);
+
+    const int n = x.extent[0];
 
     // tuning sizes
     static const unsigned int tile_size = 128;
     static const unsigned int max_tiles = 64;
 
-    auto func = _detail::dot_helper<ret_type, ret_type, std::pair<array_type,array_type>, _detail::sum<ret_type>>(ret_type(), _detail::sum<ret_type>());
+    auto func = _detail::dot_helper<ret_type, ret_type, std::pair<array_type,array_type>, _detail::sum<ret_type>, trans_op>(ret_type(), _detail::sum<ret_type>());
 
     // call generic 1D reduction
-    return _detail::reduce<tile_size, max_tiles, ret_type, ret_type>(n, std::make_pair(X,Y), func);
+    return _detail::reduce<tile_size, max_tiles, ret_type, ret_type>(av, n, std::make_pair(x,y), func);
+}
+
+// if no transpose operation is specified, use the conjugate
+template <typename ret_type, typename array_type>
+ret_type dot(const concurrency::accelerator_view& av, const array_type& x, const array_type& y)
+{
+    return dot<ret_type, _detail::conjugate, array_type>(av, x, y);
 }
 
 // Generic NRM2 algorithm for AMPBLAS arrays of type T
-template <typename value_type, typename accumulation_type, typename operation>
+template <typename value_type, typename accumulation_type, typename trans_op>
 accumulation_type dot(int n, const value_type *x, int incx, const value_type *y, int incy)
 {
 	// quick return
@@ -85,7 +96,7 @@ accumulation_type dot(int n, const value_type *x, int incx, const value_type *y,
     auto x_vec = make_vector_view(n, x, incx);
     auto y_vec = make_vector_view(n, y, incy);
 
-    return dot<accumulation_type,operation>(n, x_vec, y_vec);
+    return dot<accumulation_type,trans_op>(get_current_accelerator_view(), x_vec, y_vec);
 }
 
 } // namespace ampblas

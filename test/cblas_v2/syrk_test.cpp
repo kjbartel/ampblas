@@ -35,7 +35,9 @@
 template <typename value_type>
 struct syrk_parameters
 {
-    syrk_parameters(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, value_type alpha, value_type beta, int lda_offset, int ldc_offset)
+    typedef typename ampblas::real_type<value_type>::type real_type;
+
+    syrk_parameters(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, real_type alpha, real_type beta, int lda_offset, int ldc_offset)
       : uplo(uplo), trans(trans), n(n), k(k), alpha(alpha), beta(beta), lda_offset(lda_offset), ldc_offset(ldc_offset)
     {}
 
@@ -43,8 +45,8 @@ struct syrk_parameters
     enum AMPBLAS_TRANSPOSE trans;
     int n;
     int k;
-    value_type alpha;
-    value_type beta;
+    real_type alpha;
+    real_type beta;
     int lda_offset;
     int ldc_offset;
 
@@ -73,6 +75,8 @@ template <typename value_type>
 class syrk_test : public test_case<value_type,syrk_parameters>
 {
 public:
+
+    typedef typename ampblas::real_type<value_type>::type real_type;
 
     std::string name() const
     {
@@ -109,18 +113,14 @@ public:
         ampblas_test_matrix<value_type> A_amp(A);
         ampblas_test_matrix<value_type> C_amp(C);
 
-		// cblas types
-		cblas::uplo uplo = (p.uplo == AmpblasUpper ? cblas::uplo::upper : cblas::uplo::lower);
-        cblas::transpose trans = (p.trans == AmpblasTrans ? cblas::transpose::trans : cblas::transpose::no_trans);
-
         // test references
         start_reference_test();
-        cblas::xSYRK( uplo, trans, p.n, p.k, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(p.beta), cblas_cast(C.data()), C.ld() );
+        cblas::xSYRK(cblas_cast(p.uplo), cblas_cast(p.trans), p.n, p.k, p.alpha, cblas_cast(A.data()), A.ld(), p.beta, cblas_cast(C.data()), C.ld());
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        ampblas_xsyrk( AmpblasColMajor, p.uplo, p.trans, p.n, p.k, ampcblas_cast(p.alpha), ampcblas_cast(A_amp.data()), A_amp.ld(), ampcblas_cast(p.beta), ampcblas_cast(C_amp.data()), C_amp.ld() );
+        ampblas_xsyrk(AmpblasColMajor, p.uplo, p.trans, p.n, p.k, p.alpha, ampcblas_cast(A_amp.data()), A_amp.ld(), p.beta, ampcblas_cast(C_amp.data()), C_amp.ld());
         stop_ampblas_test();
 
         // calculate error
@@ -136,7 +136,7 @@ public:
 
         std::vector<enum AMPBLAS_TRANSPOSE> trans;
         trans.push_back(AmpblasNoTrans);
-        trans.push_back(AmpblasTrans);
+        trans.push_back(AmpblasConjTrans);
 
         std::vector<int> n;
         n.push_back(16);
@@ -148,15 +148,15 @@ public:
         k.push_back(17);
         k.push_back(64);
 
-        std::vector<value_type> alpha;
-        alpha.push_back( value_type(1) );
-        alpha.push_back( value_type(-1) );
-        alpha.push_back( value_type(0) );
+        std::vector<real_type> alpha;
+        alpha.push_back( real_type(1) );
+        alpha.push_back( real_type(-1) );
+        alpha.push_back( real_type(0) );
 
-        std::vector<value_type> beta;
-        beta.push_back( value_type(2) );
-        beta.push_back( value_type(-1) );
-        beta.push_back( value_type(0) );
+        std::vector<real_type> beta;
+        beta.push_back( real_type(1) );
+        beta.push_back( real_type(-1) );
+        beta.push_back( real_type(0) );
 
         std::vector<int> lda_offset;
         lda_offset.push_back(0);
@@ -170,5 +170,22 @@ public:
     }
 };
 
+template <>
+std::string syrk_test<complex_float>::name() const
+{
+    return "HERK";
+}
+
+template <>
+std::string syrk_test<complex_double>::name() const
+{
+    return "HERK";
+}
+
+// syrk
 REGISTER_TEST(syrk_test, float);
 REGISTER_TEST(syrk_test, double);
+
+// herk
+REGISTER_TEST(syrk_test, complex_float);
+REGISTER_TEST(syrk_test, complex_double);

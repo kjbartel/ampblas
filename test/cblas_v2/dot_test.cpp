@@ -57,7 +57,7 @@ struct dot_parameters
 };
 
 template <typename value_type>
-class dot_test : public test_case<value_type,dot_parameters>
+class dot_test : public test_case<value_type, dot_parameters>
 {
 public:
 
@@ -76,18 +76,23 @@ public:
         randomize(x);
         randomize(y);
 
+        typedef typename cblas_type<value_type>::type cblas_type;
+        typedef typename ampcblas_type<value_type>::type ampcblas_type;
+
         // test references
         start_reference_test();
-        value_type cblas = cblas::xDOT<value_type,value_type>(p.n, cblas_cast(x.data()), x.inc(), cblas_cast(y.data()), y.inc());
+        cblas_type cblas = cblas::xDOT<cblas_type,cblas_type>(p.n, cblas_cast(x.data()), x.inc(), cblas_cast(y.data()), y.inc());
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        value_type amp = ampblas_xdot(p.n, ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc());
+        ampcblas_type amp = ampblas_xdot(p.n, ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc());
         stop_ampblas_test();
 
         // calculate error
-        check_error(p.n, cblas, amp);
+        value_type cblas_val = *reinterpret_cast<value_type*>(&cblas);
+        value_type amp_val   = *reinterpret_cast<value_type*>(&amp);
+        check_error(p.n, cblas_val, amp_val);
     }
 
     dot_test()
@@ -141,12 +146,12 @@ class promoted_dot_test : public dot_test<value_type>
 
         // test references
         start_reference_test();
-        promoted_type cblas = cblas::xDOT<value_type,promoted_type>(p.n, x.data(), x.inc(), y.data(), y.inc());
+        promoted_type cblas = cblas::xDOT<value_type,promoted_type>(p.n, cblas_cast(x.data()), x.inc(), cblas_cast(y.data()), y.inc());
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        promoted_type amp = ampblas_dsdot(p.n, x.data(), x.inc(), y.data(), y.inc());
+        promoted_type amp = ampblas_dsdot(p.n, ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc());
         stop_ampblas_test();
 
         // calculate error
@@ -154,7 +159,9 @@ class promoted_dot_test : public dot_test<value_type>
     }
 };
 
-REGISTER_TEST(dot_test,float);
-REGISTER_TEST(dot_test,double);
+REGISTER_TEST(dot_test, float);
+REGISTER_TEST(dot_test, double);
+REGISTER_TEST(dot_test, complex_float);
+REGISTER_TEST(dot_test, complex_double);
 
-REGISTER_TEST(promoted_dot_test,float);
+REGISTER_TEST(promoted_dot_test, float);

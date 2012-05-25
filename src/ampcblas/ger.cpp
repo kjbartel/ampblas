@@ -46,16 +46,16 @@ void ampblas_zgeru(const enum AMPBLAS_ORDER order, const int M, const int N, con
 	AMPBLAS_CHECKED_CALL( ampblas::ger<dcomplex,ampblas::_detail::noop>(order, M, N, zalpha, ampblas_cast(X), incX, ampblas_cast(Y), incY, ampblas_cast(A), lda) );
 }
 
-// void ampblas_cgerc(const enum AMPBLAS_ORDER order, const int M, const int N, const ampblas_fcomplex* alpha, const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *A, const int lda)
-// {
-//     const fcomplex calpha = *ampblas_cast(alpha);
-//     AMPBLAS_CHECKED_CALL( ampblas::ger<fcomplex,ampblas::_detail::conj>(order, M, N, calpha, ampblas_cast(X), incX, ampblas_cast(Y), incY, ampblas_cast(A), lda) );
-// }
+void ampblas_cgerc(const enum AMPBLAS_ORDER order, const int M, const int N, const ampblas_fcomplex* alpha, const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *A, const int lda)
+{
+    const fcomplex calpha = *ampblas_cast(alpha);
+    AMPBLAS_CHECKED_CALL( ampblas::ger<fcomplex,ampblas::_detail::conjugate>(order, M, N, calpha, ampblas_cast(X), incX, ampblas_cast(Y), incY, ampblas_cast(A), lda) );
+}
 
-// void ampblas_zgerc(const enum AMPBLAS_ORDER order, const int M, const int N, const ampblas_dcomplex* alpha, const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *A, const int lda)
-// {
-//     const dcomplex zalpha = *ampblas_cast(alpha);
-// 	   AMPBLAS_CHECKED_CALL( ampblas::ger<dcomplex,ampblas::_detail::conj>(order, M, N, zalpha, ampblas_cast(X), incX, ampblas_cast(Y), incY, ampblas_cast(A), lda) );
-// }
+void ampblas_zgerc(const enum AMPBLAS_ORDER order, const int M, const int N, const ampblas_dcomplex* alpha, const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *A, const int lda)
+{
+    const dcomplex zalpha = *ampblas_cast(alpha);
+    AMPBLAS_CHECKED_CALL( ampblas::ger<dcomplex,ampblas::_detail::conjugate>(order, M, N, zalpha, ampblas_cast(X), incX, ampblas_cast(Y), incY, ampblas_cast(A), lda) );
+}
 
 } // extern "C"

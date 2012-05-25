@@ -62,7 +62,13 @@ public:
 
     std::string name() const
     {
-        return "TRMV";
+        return "TRSV";
+    }
+
+    bool requires_full_double() const
+    {
+        // uses division
+        return true;
     }
 
     real_type fudge_factor() const
@@ -97,14 +103,9 @@ public:
         // ampblas data
         ampblas_test_vector<value_type> x_amp(x);
 
-		// cblas types
-		cblas::uplo uplo = (p.uplo == AmpblasLower ? cblas::uplo::lower : cblas::uplo::upper);
-		cblas::transpose trans = (p.trans == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-		cblas::diag diag = (p.diag == AmpblasNonUnit ? cblas::diag::non_unit : cblas::diag::unit);
-
         // test references
         start_reference_test();
-		cblas::xTRSV(uplo, trans, diag, p.n, cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc());
+		cblas::xTRSV(cblas_cast(p.uplo), cblas_cast(p.trans), cblas_cast(p.diag), p.n, cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc());
         stop_reference_test();
 
         // test ampblas

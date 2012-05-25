@@ -87,9 +87,13 @@ namespace cblas {
     void ZCOPY( int N, complex_double* X, int INCX, complex_double* Y, int INCY );
 
     // DOT
-    float   SDOT( int N, const float*  X, int INCX, const float*  Y, int INCY );
-    double DSDOT( int N, const float*  X, int INCX, const float*  Y, int INCY );
-    double  DDOT( int N, const double* X, int INCX, const double* Y, int INCY );
+    float           SDOT( int N, const float*          X, int INCX, const float*          Y, int INCY );
+    double         DSDOT( int N, const float*          X, int INCX, const float*          Y, int INCY );
+    double          DDOT( int N, const double*         X, int INCX, const double*         Y, int INCY );
+    complex_float  CDOTU( int N, const complex_float*  X, int INCX, const complex_float*  Y, int INCY );
+    complex_float  CDOTC( int N, const complex_float*  X, int INCX, const complex_float*  Y, int INCY );
+    complex_double ZDOTU( int N, const complex_double* X, int INCX, const complex_double* Y, int INCY );
+    complex_double ZDOTC( int N, const complex_double* X, int INCX, const complex_double* Y, int INCY );
 
     // NRM2
     float   SNRM2( int N, const float*          X, int INCX );
@@ -122,8 +126,10 @@ namespace cblas {
 	// GER
     void SGER( int M, int N, float          ALPHA, const float*          X, int INCX, const float*          Y, int INCY, float*          A, int LDA );
     void DGER( int M, int N, double         ALPHA, const double*         X, int INCX, const double*         Y, int INCY, double*         A, int LDA );
-    void CGER( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA );
-    void ZGER( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA );
+    void CGERU( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA );
+    void CGERC( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA );
+    void ZGERU( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA );
+    void ZGERC( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA );
 	
 	// GEMV
 	void SGEMV( enum class transpose TRANSA, int M, int N, float          ALPHA, const float*          A, int LDA, const float*          X, int INCX, float          BETA, float*          Y, int INCY );
@@ -132,14 +138,16 @@ namespace cblas {
 	void ZGEMV( enum class transpose TRANSA, int M, int N, complex_double ALPHA, const complex_double* A, int LDA, const complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY );
 	
     // SYR
-    void SSYR( enum class uplo UPLO, int N, float          ALPHA, const float*          X, int INCX, float*          A, int LDA );
-    void DSYR( enum class uplo UPLO, int N, double         ALPHA, const double*         X, int INCX, double*         A, int LDA );
-    void CSYR( enum class uplo UPLO, int N, complex_float  ALPHA, const complex_float*  X, int INCX, complex_float*  A, int LDA );
-    void ZSYR( enum class uplo UPLO, int N, complex_double ALPHA, const complex_double* X, int INCX, complex_double* A, int LDA );
+    void SSYR( enum class uplo UPLO, int N, float  ALPHA, const float*          X, int INCX, float*          A, int LDA );
+    void DSYR( enum class uplo UPLO, int N, double ALPHA, const double*         X, int INCX, double*         A, int LDA );
+    void CHER( enum class uplo UPLO, int N, float  ALPHA, const complex_float*  X, int INCX, complex_float*  A, int LDA );
+    void ZHER( enum class uplo UPLO, int N, double ALPHA, const complex_double* X, int INCX, complex_double* A, int LDA );
 
     // SYMV
-    void SSYMV( enum class uplo UPLO, int N, float  ALPHA, float*  A, int LDA, float*  X, int INCX, float  BETA, float*  Y, int INCY);
-    void DSYMV( enum class uplo UPLO, int N, double ALPHA, double* A, int LDA, double* X, int INCX, double BETA, double* Y, int INCY);
+    void SSYMV( enum class uplo UPLO, int N, float          ALPHA, float*          A, int LDA, float*          X, int INCX, float          BETA, float*          Y, int INCY);
+    void DSYMV( enum class uplo UPLO, int N, double         ALPHA, double*         A, int LDA, double*         X, int INCX, double         BETA, double*         Y, int INCY);
+    void CHEMV( enum class uplo UPLO, int N, complex_float  ALPHA, complex_float*  A, int LDA, complex_float*  X, int INCX, complex_float  BETA, complex_float*  Y, int INCY);
+    void ZHEMV( enum class uplo UPLO, int N, complex_double ALPHA, complex_double* A, int LDA, complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY);
 	
     // TRMV
     void STRMV( enum class uplo UPLO, enum class transpose TRANS, enum class diag DIAG, int N, float*          A, int LDA, float*          X, int INCX);
@@ -176,16 +184,18 @@ namespace cblas {
 	void ZTRSM( enum class side SIDE, enum class uplo UPLO, enum class transpose TRANSA, enum class diag DIAG, int M, int N, complex_double ALPHA, complex_double* A, int LDA, complex_double* B, int LDB );
 	
 	// SYMM
-	void SSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, float  ALPHA, float*  A, int LDA, float*  B, int LDB, float  BETA, float*  C, int LDC);
-	void DSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC);
+	void SSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, float  ALPHA, float*  A, int LDA, float*  B, int LDB, float  BETA, float*  C, int LDC );
+	void DSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC );
 
 	// SYRK
-	void SSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float  BETA, float*  C, int LDC);
-	void DSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double* A, int LDA, double BETA, double* C, int LDC);
+	void SSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*          A, int LDA, float  BETA, float*          C, int LDC );
+	void DSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double*         A, int LDA, double BETA, double*         C, int LDC );
+    void CHERK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, complex_float*  A, int LDA, float  BETA, complex_float*  C, int LDC );
+	void ZHERK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, complex_double* A, int LDA, double BETA, complex_double* C, int LDC );
 
 	// SYR2K
-	void SSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float*  B, int LDB, float  BETA, float*  C, int LDC);
-	void DSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC);
+	void SSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float*  B, int LDB, float  BETA, float*  C, int LDC );
+	void DSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC );
 
     // ------------------------------------------------------------------------
     // BLAS 1 C++ Overloads
@@ -220,10 +230,12 @@ namespace cblas {
     template <>    inline void xCOPY( int N, complex_double* X, int INCX, complex_double* Y, int INCY ) { ZCOPY( N, X, INCX, Y, INCY ); }
 
     // xDOT
-    template <typename T, typename U>     U xDOT( int N, const T*      X, int INCX, const T*      Y, int INCY );
-    template <>               inline  float xDOT( int N, const float*  X, int INCX, const float*  Y, int INCY ) { return SDOT ( N, X, INCX, Y, INCY ); }
-    template <>               inline double xDOT( int N, const float*  X, int INCX, const float*  Y, int INCY ) { return DSDOT( N, X, INCX, Y, INCY ); }
-    template <>               inline double xDOT( int N, const double* X, int INCX, const double* Y, int INCY ) { return DDOT ( N, X, INCX, Y, INCY ); }
+    template <typename T, typename U>             U xDOT( int N, const T*              X, int INCX, const T*              Y, int INCY );
+    template <>               inline          float xDOT( int N, const float*          X, int INCX, const float*          Y, int INCY ) { return SDOT ( N, X, INCX, Y, INCY ); }
+    template <>               inline         double xDOT( int N, const float*          X, int INCX, const float*          Y, int INCY ) { return DSDOT( N, X, INCX, Y, INCY ); }
+    template <>               inline         double xDOT( int N, const double*         X, int INCX, const double*         Y, int INCY ) { return DDOT ( N, X, INCX, Y, INCY ); }
+    template <>               inline  complex_float xDOT( int N, const complex_float*  X, int INCX, const complex_float*  Y, int INCY ) { return CDOTC( N, X, INCX, Y, INCY ); }
+    template <>               inline complex_double xDOT( int N, const complex_double* X, int INCX, const complex_double* Y, int INCY ) { return ZDOTC( N, X, INCX, Y, INCY ); }
 
     // xNRM2
     template <typename T> typename real_type<T>::type xNRM2( int N, const T*              X,  int INCX );
@@ -259,10 +271,10 @@ namespace cblas {
 
 	// xGER                                                       
     template <typename T> void xGER( int M, int N, T              ALPHA, const T*              X, int INCX, const T*              Y, int INCY, T*              A, int LDA );
-    template <>    inline void xGER( int M, int N, float          ALPHA, const float*          X, int INCX, const float*          Y, int INCY, float*          A, int LDA ) { SGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
-    template <>    inline void xGER( int M, int N, double         ALPHA, const double*         X, int INCX, const double*         Y, int INCY, double*         A, int LDA ) { DGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
-    template <>    inline void xGER( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA ) { CGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
-    template <>    inline void xGER( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA ) { ZGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
+    template <>    inline void xGER( int M, int N, float          ALPHA, const float*          X, int INCX, const float*          Y, int INCY, float*          A, int LDA ) {  SGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
+    template <>    inline void xGER( int M, int N, double         ALPHA, const double*         X, int INCX, const double*         Y, int INCY, double*         A, int LDA ) {  DGER( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
+    template <>    inline void xGER( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA ) { CGERC( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
+    template <>    inline void xGER( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA ) { ZGERC( M, N, ALPHA, X, INCX, Y, INCY, A, LDA ); }
 
 	// xGEMV
 	template <typename T> void xGEMV( enum class transpose TRANSA, int M, int N, T              ALPHA, const T*              A, int LDA, const T*              X, int INCX, T              BETA, T*              Y, int INCY );
@@ -272,14 +284,18 @@ namespace cblas {
 	template <>    inline void xGEMV( enum class transpose TRANSA, int M, int N, complex_double ALPHA, const complex_double* A, int LDA, const complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY ) { ZGEMV(TRANSA, M, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
 
     // xSYR
-    template <typename T> void xSYR( enum class uplo UPLO, int N, T      ALPHA, const T*      X, int INCX, T*      A, int LDA );
-    template <>    inline void xSYR( enum class uplo UPLO, int N, float  ALPHA, const float*  X, int INCX, float*  A, int LDA ) { SSYR( UPLO, N, ALPHA, X, INCX, A, LDA ); }
-    template <>    inline void xSYR( enum class uplo UPLO, int N, double ALPHA, const double* X, int INCX, double* A, int LDA ) { DSYR( UPLO, N, ALPHA, X, INCX, A, LDA ); }
+    template <typename T> void xSYR( enum class uplo UPLO, int N, typename real_type<T>::type ALPHA, const T*              X, int INCX, T*              A, int LDA );
+    template <>    inline void xSYR( enum class uplo UPLO, int N, float                       ALPHA, const float*          X, int INCX, float*          A, int LDA ) { SSYR( UPLO, N, ALPHA, X, INCX, A, LDA ); }
+    template <>    inline void xSYR( enum class uplo UPLO, int N, double                      ALPHA, const double*         X, int INCX, double*         A, int LDA ) { DSYR( UPLO, N, ALPHA, X, INCX, A, LDA ); }
+    template <>    inline void xSYR( enum class uplo UPLO, int N, float                       ALPHA, const complex_float*  X, int INCX, complex_float*  A, int LDA ) { CHER( UPLO, N, ALPHA, X, INCX, A, LDA ); }
+    template <>    inline void xSYR( enum class uplo UPLO, int N, double                      ALPHA, const complex_double* X, int INCX, complex_double* A, int LDA ) { ZHER( UPLO, N, ALPHA, X, INCX, A, LDA ); }
 
     // xSYMV
-    template <typename T> void xSYMV( enum class uplo UPLO, int N, T      ALPHA, T*      A, int LDA, T*      X, int INCX, T      BETA, T*      Y, int INCY );
-    template <>    inline void xSYMV( enum class uplo UPLO, int N, float  ALPHA, float*  A, int LDA, float*  X, int INCX, float  BETA, float*  Y, int INCY ) { SSYMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
-    template <>    inline void xSYMV( enum class uplo UPLO, int N, double ALPHA, double* A, int LDA, double* X, int INCX, double BETA, double* Y, int INCY ) { DSYMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
+    template <typename T> void xSYMV( enum class uplo UPLO, int N, T              ALPHA, T*              A, int LDA, T*              X, int INCX, T              BETA, T*              Y, int INCY );
+    template <>    inline void xSYMV( enum class uplo UPLO, int N, float          ALPHA, float*          A, int LDA, float*          X, int INCX, float          BETA, float*          Y, int INCY ) { SSYMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
+    template <>    inline void xSYMV( enum class uplo UPLO, int N, double         ALPHA, double*         A, int LDA, double*         X, int INCX, double         BETA, double*         Y, int INCY ) { DSYMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
+    template <>    inline void xSYMV( enum class uplo UPLO, int N, complex_float  ALPHA, complex_float*  A, int LDA, complex_float*  X, int INCX, complex_float  BETA, complex_float*  Y, int INCY ) { CHEMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
+    template <>    inline void xSYMV( enum class uplo UPLO, int N, complex_double ALPHA, complex_double* A, int LDA, complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY ) { ZHEMV(UPLO, N, ALPHA, A, LDA, X, INCX, BETA, Y, INCY); }
 	
     // xTRMV
     template <typename T> void xTRMV( enum class uplo UPLO, enum class transpose TRANS, enum class diag DIAG, int N, T*              A, int LDA, T*              X, int INCX );
@@ -326,9 +342,11 @@ namespace cblas {
 	template <>    inline void xSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC) { DSYMM( SIDE, UPLO, M, N, ALPHA, A, LDA, B, LDB, BETA, C, LDC); }
 
 	// xSYRK
-	template <typename T> void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, T      ALPHA, T*      A, int LDA, T      BETA, T*      C, int LDC);
-	template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float  BETA, float*  C, int LDC) { SSYRK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
-	template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double* A, int LDA, double BETA, double* C, int LDC) { DSYRK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
+	template <typename T> void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, typename real_type<T>::type ALPHA, T*              A, int LDA, typename real_type<T>::type      BETA, T*              C, int LDC);
+	template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float                       ALPHA, float*          A, int LDA, float                            BETA, float*          C, int LDC) { SSYRK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
+	template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double                      ALPHA, double*         A, int LDA, double                           BETA, double*         C, int LDC) { DSYRK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
+    template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float                       ALPHA, complex_float*  A, int LDA, float                            BETA, complex_float*  C, int LDC) { CHERK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
+	template <>    inline void xSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double                      ALPHA, complex_double* A, int LDA, double                           BETA, complex_double* C, int LDC) { ZHERK( UPLO, TRANS, N, K, ALPHA, A, LDA, BETA, C, LDC); }
 
 	// xSYR2K
 	template <typename T> void xSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, T      ALPHA, T*      A, int LDA, T*      B, int LDB, T      BETA, T*      C, int LDC);

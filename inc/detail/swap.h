@@ -28,6 +28,12 @@ namespace ampblas {
 // runtime will throw an ampblas_exception when the buffers are bound. 
 //-------------------------------------------------------------------------
 
+template <typename x_type, typename y_type>
+void swap(const concurrency::accelerator_view& av, x_type& x, y_type& y)
+{
+    _detail::swap(av, x.extent, x, y);
+}
+
 template <typename value_type>
 void swap(int n, value_type *x, int incx, value_type *y, int incy)
 {
@@ -43,7 +49,7 @@ void swap(int n, value_type *x, int incx, value_type *y, int incy)
 
     auto x_vec = make_vector_view(n,x,incx);
     auto y_vec = make_vector_view(n,y,incy);
-    _detail::swap(make_extent(n), x_vec, y_vec);
+    swap(get_current_accelerator_view(), x_vec, y_vec);
 }
 
 } // namespace ampblas

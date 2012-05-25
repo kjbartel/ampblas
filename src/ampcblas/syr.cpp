@@ -24,22 +24,24 @@
 
 extern "C" {
 
-void ampblas_ssyr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N,const float alpha, const float *X, const int incX, float *A, const int lda)
+void ampblas_ssyr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const float alpha, const float *X, const int incX, float *A, const int lda)
 {
-    AMPBLAS_CHECKED_CALL( ampblas::syr(order, uplo, N, alpha, X, incX, A, lda) );
+    AMPBLAS_CHECKED_CALL( ampblas::syr<ampblas::_detail::noop>(order, uplo, N, alpha, X, incX, A, lda) );
 }
 
 void ampblas_dsyr(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const double alpha, const double *X, const int incX, double *A, const int lda)
 {
-	AMPBLAS_CHECKED_CALL( ampblas::syr(order, uplo, N, alpha, X, incX, A, lda) );
+	AMPBLAS_CHECKED_CALL( ampblas::syr<ampblas::_detail::noop>(order, uplo, N, alpha, X, incX, A, lda) );
 }
 
-// void ampblas_cher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const ampblas_fcomplex* alpha, const ampblas_fcomplex *X, const int incX, ampblas_fcomplex *A, const int lda)
-// {
-// }
+void ampblas_cher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const float alpha, const ampblas_fcomplex *X, const int incX, ampblas_fcomplex *A, const int lda)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::syr<ampblas::_detail::conjugate>(order, uplo, N, alpha, ampblas_cast(X), incX, ampblas_cast(A), lda) );
+}
  
-// void ampblas_zher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const ampblas_dcomplex* alpha, const ampblas_dcomplex *X, const int incX, ampblas_dcomplex *A, const int lda)
-// {
-// }
+void ampblas_zher(const enum AMPBLAS_ORDER order, const enum AMPBLAS_UPLO uplo, const int N, const double alpha, const ampblas_dcomplex *X, const int incX, ampblas_dcomplex *A, const int lda)
+{
+    AMPBLAS_CHECKED_CALL( ampblas::syr<ampblas::_detail::conjugate>(order, uplo, N, alpha, ampblas_cast(X), incX, ampblas_cast(A), lda) );
+}
 
 } // extern "C"

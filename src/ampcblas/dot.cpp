@@ -52,21 +52,25 @@ double ampblas_ddot(const int N, const double *X, const int incX, const double *
 void ampblas_cdotu_sub(const int N, const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *dotu)
 {
     fcomplex& ret = *ampblas_cast(dotu);
-    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<fcomplex, fcomplex, ampblas::_detail::noop>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY ) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<fcomplex, fcomplex, ampblas::_detail::noop>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
-// void ampblas_cdotc_sub(const int N, const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *dotc)
-// {
-// }
+void ampblas_cdotc_sub(const int N, const ampblas_fcomplex *X, const int incX, const ampblas_fcomplex *Y, const int incY, ampblas_fcomplex *dotc)
+{
+    fcomplex& ret = *ampblas_cast(dotc);
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<fcomplex, fcomplex, ampblas::_detail::conjugate>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
+}
 
 void ampblas_zdotu_sub(const int N, const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *dotu)
 {
     dcomplex& ret = *ampblas_cast(dotu);
-    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<dcomplex, dcomplex, ampblas::_detail::noop>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY ) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<dcomplex, dcomplex, ampblas::_detail::noop>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
 }
 
-// void ampblas_zdotc_sub(const int N, const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *dotc)
-// {
-// }
+void ampblas_zdotc_sub(const int N, const ampblas_dcomplex *X, const int incX, const ampblas_dcomplex *Y, const int incY, ampblas_dcomplex *dotc)
+{
+    dcomplex& ret = *ampblas_cast(dotc);
+    AMPBLAS_CHECKED_CALL( ret = ampblas::dot<dcomplex, dcomplex, ampblas::_detail::conjugate>(N, ampblas_cast(X), incX, ampblas_cast(Y), incY) );
+}
 
 } // extern "C"

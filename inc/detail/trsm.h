@@ -24,7 +24,7 @@ namespace ampblas {
 namespace _detail {
 
 template <int tile_size, bool guarded, typename value_type>
-void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+void trsm_ll(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
 {
     // runtime sizes
     int m = b.extent[1];
@@ -35,7 +35,7 @@ void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
     auto e = make_extent(tile_size, tile_size*tiles);
 
     concurrency::parallel_for_each ( 
-        get_current_accelerator_view(), 
+        av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
@@ -61,6 +61,10 @@ void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
             // read tile at A(i,i) into local A
             a_local = _detail::guarded_read<guarded>(a, concurrency::index<2>(i+row, i+col));
 
+            // apply conjugation
+            if (transa == AmpblasConjTrans)
+                a_local = conjugate::op(a_local);
+
             // read tile at B(i,j) into local B
             b_local = _detail::guarded_read<guarded>(b, concurrency::index<2>(j+row, i+col));
             tid.barrier.wait();
@@ -76,7 +80,7 @@ void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
                     // elimation scalar
                     value_type temp = b_tile[jj][ii];
                     if (diag == AmpblasNonUnit)
-                        temp /= (a_tile[ii][ii] == value_type() ? value_type(1) : a_tile[ii][ii]);
+                        temp /= a_tile[ii][ii];
 
                     // apply
                     for (unsigned int kk=ii+1; kk<tile_size; kk++)
@@ -94,6 +98,11 @@ void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
             {   
                 // read tile at A(k,i) into local A
                 a_local = _detail::guarded_read<guarded>(a, transa == AmpblasNoTrans ? concurrency::index<2>(i+row, k+col) : concurrency::index<2>(k+row, i+col));
+
+                // apply conjugation
+                if (transa == AmpblasConjTrans)
+                    a_local = conjugate::op(a_local);
+
                 tid.barrier.wait();
 
                 // accumulate
@@ -117,7 +126,7 @@ void trsm_ll(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 }
 
 template <int tile_size, bool guarded, typename value_type>
-void trsm_lu(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+void trsm_lu(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
 {
     // runtime sizes
     int m = b.extent[1];
@@ -131,7 +140,7 @@ void trsm_lu(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
     const int dummy = 1;
 
     concurrency::parallel_for_each ( 
-        get_current_accelerator_view(), 
+        av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
@@ -159,6 +168,10 @@ void trsm_lu(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 
             // read tile at A(i,i) into local A
             a_local = _detail::guarded_read<guarded>(a, concurrency::index<2>(i+row, i+col));
+
+            // apply conjugation
+            if (transa == AmpblasConjTrans)
+                a_local = conjugate::op(a_local);
 
             // read tile at B(i,j) into local B
             b_local = _detail::guarded_read<guarded>(b, concurrency::index<2>(j+row, i+col));
@@ -200,6 +213,11 @@ void trsm_lu(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 
                 // read tile at A(k,i) into local A
                 a_local = _detail::guarded_read<guarded>(a, transa == AmpblasNoTrans ? concurrency::index<2>(i+row, k+col) : concurrency::index<2>(k+row, i+col));
+
+                // apply conjugation
+                if (transa == AmpblasConjTrans)
+                    a_local = conjugate::op(a_local);
+
                 tid.barrier.wait_with_tile_static_memory_fence();
 
                 // accumulate
@@ -218,7 +236,7 @@ void trsm_lu(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 }
 
 template <int tile_size, bool guarded, typename value_type>
-void trsm_rl(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+void trsm_rl(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
 {
     // runtime sizes
     int m = b.extent[1];
@@ -232,7 +250,7 @@ void trsm_rl(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
     const int dummy = 1;
 
     concurrency::parallel_for_each ( 
-        get_current_accelerator_view(), 
+        av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
@@ -260,6 +278,10 @@ void trsm_rl(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 
             // read tile at A(j,j) into local A
             a_local = _detail::guarded_read<guarded>(a, concurrency::index<2>(j+row, j+col));
+
+            // apply conjugation
+            if (transa == AmpblasConjTrans)
+                a_local = conjugate::op(a_local);
 
             // read tile at B(i,j) into local B
             b_local = _detail::guarded_read<guarded>(b, concurrency::index<2>(j+row, i+col));
@@ -302,6 +324,11 @@ void trsm_rl(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 
                 // read tile at A(k,i) into local A
                 a_local = _detail::guarded_read<guarded>(a, transa == AmpblasNoTrans ? concurrency::index<2>(k+row, j+col) : concurrency::index<2>(j+row, k+col));
+
+                // apply conjugation
+                if (transa == AmpblasConjTrans)
+                    a_local = conjugate::op(a_local);
+
                 tid.barrier.wait();
 
                 // accumulate
@@ -323,7 +350,7 @@ void trsm_rl(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 }
 
 template <int tile_size, bool guarded, typename value_type>
-void trsm_ru(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+void trsm_ru(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
 {
     // runtime sizes
     int m = b.extent[1];
@@ -334,7 +361,7 @@ void trsm_ru(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
     auto e = make_extent(tile_size, tile_size*tiles);
 
     concurrency::parallel_for_each( 
-        get_current_accelerator_view(), 
+        av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
@@ -359,6 +386,10 @@ void trsm_ru(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
         {
             // read tile at A(j,j) into local A
             a_local = _detail::guarded_read<guarded>(a, concurrency::index<2>(j+row, j+col));
+
+            // apply conjugation
+            if (transa == AmpblasConjTrans)
+                a_local = conjugate::op(a_local);
 
             // read tile at B(i,j) into local B
             b_local = _detail::guarded_read<guarded>(b, concurrency::index<2>(j+row, i+col));
@@ -398,6 +429,11 @@ void trsm_ru(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
             {   
                 // read tile at A(k,i) into local A
                 a_local = _detail::guarded_read<guarded>(a, transa == AmpblasNoTrans ? concurrency::index<2>(k+row, j+col) : concurrency::index<2>(j+row, k+col));
+
+                // apply conjugation
+                if (transa == AmpblasConjTrans)
+                    a_local = conjugate::op(a_local);
+
                 tid.barrier.wait_with_tile_static_memory_fence();
 
                 // accumulate
@@ -420,7 +456,7 @@ void trsm_ru(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type a
 } // namespace _detail
 
 template <typename value_type>
-void trsm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b)
+void trsm(const concurrency::accelerator_view& av, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b)
 {
     // tuning parameters
     const int tile_size = 8;
@@ -432,12 +468,12 @@ void trsm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
         if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
         {
             // lower + no trans <==> upper + trans 
-            _detail::trsm_ll<tile_size,guarded>(transa, diag, alpha, a, b);
+            _detail::trsm_ll<tile_size,guarded>(av, transa, diag, alpha, a, b);
         }
         else
         {
             // upper + no trans <==> lower + trans 
-            _detail::trsm_lu<tile_size,guarded>(transa, diag, alpha, a, b);
+            _detail::trsm_lu<tile_size,guarded>(av, transa, diag, alpha, a, b);
         }
     }
     else if (side == AmpblasRight)
@@ -445,12 +481,12 @@ void trsm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
         if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
         {
             // lower + no trans <==> upper + trans 
-            _detail::trsm_rl<tile_size,guarded>(transa, diag, alpha, a, b);
+            _detail::trsm_rl<tile_size,guarded>(av, transa, diag, alpha, a, b);
         }
         else
         {
             // upper + no trans <==> lower + trans
-            _detail::trsm_ru<tile_size,guarded>(transa, diag, alpha, a, b);
+            _detail::trsm_ru<tile_size,guarded>(av, transa, diag, alpha, a, b);
         }
     }
 }
@@ -493,12 +529,12 @@ void trsm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
 	// special paths
 	if (alpha==value_type())
     {
-        _detail::fill(make_extent(m,n), value_type(), b_mat);
+        _detail::fill(get_current_accelerator_view(), make_extent(m,n), value_type(), b_mat);
         return;
     }
 
 	// implementation
-	trsm(side, uplo, transa, diag, alpha, a_mat, b_mat);
+	trsm(get_current_accelerator_view(), side, uplo, transa, diag, alpha, a_mat, b_mat);
 }
 
 } // namespace ampblas

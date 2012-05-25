@@ -108,13 +108,6 @@ public:
     }
 };
 
-template <>
-bool amax_test<complex_double>::requires_full_double() const
-{
-    // uses precise sqrt for complex abs
-    return true;
-}
-
 REGISTER_TEST(amax_test, float);
 REGISTER_TEST(amax_test, double);
 REGISTER_TEST(amax_test, complex_float);

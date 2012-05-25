@@ -92,12 +92,12 @@ public:
 
         // test references
         start_reference_test();
-        cblas::xGER( p.m, p.n, cblas_cast(p.alpha), cblas_cast(x.data()), x.inc(), cblas_cast(y.data()), y.inc(), cblas_cast(A.data()), A.ld() );
+        cblas::xGER(p.m, p.n, cblas_cast(p.alpha), cblas_cast(x.data()), x.inc(), cblas_cast(y.data()), y.inc(), cblas_cast(A.data()), A.ld());
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        ampblas_xger( AmpblasColMajor, p.m, p.n, ampcblas_cast(p.alpha), ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc(), ampcblas_cast(A_amp.data()), A_amp.ld() );
+        ampblas_xger(AmpblasColMajor, p.m, p.n, ampcblas_cast(p.alpha), ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc(), ampcblas_cast(A_amp.data()), A_amp.ld());
         stop_ampblas_test();
 
         // calculate error

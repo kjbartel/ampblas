@@ -245,7 +245,7 @@ public:
 
 	~stride_view() restrict(cpu,amp) {}
 
-	value_type& operator[] (const concurrency::index<rank>& idx) const restrict(cpu,amp)
+	value_type& operator[] (const concurrency::index<1>& idx) const restrict(cpu,amp)
 	{
 		return base_view[base_index + stride * idx];
 	}

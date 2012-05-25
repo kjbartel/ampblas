@@ -280,7 +280,7 @@ inline complex<T> operator-(const complex<T>& lhs, const T& rhs) restrict(cpu, a
 }
 // real - complex
 template<typename T>
-inline complex<T> operator-( const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
+inline complex<T> operator-(const T& lhs, const complex<T>& rhs) restrict(cpu, amp) 
 {
     // Temporaries might help coalescing loads 
     auto re = rhs.real();

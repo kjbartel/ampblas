@@ -95,18 +95,14 @@ public:
         ampblas_test_matrix<value_type> B_amp(B);
         ampblas_test_matrix<value_type> C_amp(C);
 
-		// cblas types
-		cblas::uplo uplo = (p.uplo == AmpblasUpper ? cblas::uplo::upper : cblas::uplo::lower);
-        cblas::transpose trans = (p.trans == AmpblasTrans ? cblas::transpose::trans : cblas::transpose::no_trans);
-
         // test references
         start_reference_test();
-        cblas::xSYR2K( uplo, trans, p.n, p.k, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld(), cblas_cast(p.beta), cblas_cast(C.data()), C.ld() );
+        cblas::xSYR2K(cblas_cast(p.uplo), cblas_cast(p.trans), p.n, p.k, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld(), cblas_cast(p.beta), cblas_cast(C.data()), C.ld() );
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        ampblas_xsyr2k( AmpblasColMajor, p.uplo, p.trans, p.n, p.k, ampcblas_cast(p.alpha), ampcblas_cast(A_amp.data()), A_amp.ld(), ampcblas_cast(B_amp.data()), B_amp.ld(), ampcblas_cast(p.beta), ampcblas_cast(C_amp.data()), C_amp.ld() );
+        ampblas_xsyr2k(AmpblasColMajor, p.uplo, p.trans, p.n, p.k, ampcblas_cast(p.alpha), ampcblas_cast(A_amp.data()), A_amp.ld(), ampcblas_cast(B_amp.data()), B_amp.ld(), ampcblas_cast(p.beta), ampcblas_cast(C_amp.data()), C_amp.ld() );
         stop_ampblas_test();
 
         // calculate error

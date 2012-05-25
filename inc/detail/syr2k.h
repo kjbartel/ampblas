@@ -23,8 +23,8 @@
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+template <int tile_size, typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
+void syr2k(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
 {
     typedef a_value_type value_type;
 
@@ -37,7 +37,7 @@ void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, a
     auto e = make_extent(tile_size*tiles,tile_size*tiles);
 
     concurrency::parallel_for_each (
-        get_current_accelerator_view(),
+        av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> idx_c) restrict(amp)
         {
@@ -70,27 +70,38 @@ void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, a
                 at_local  = _detail::guarded_read<true>(a_mat,a_idx);
                 att_local = _detail::guarded_read<true>(b_mat,bt_idx);
 
+                // apply transpose operation
+                att_local = trans_op::op(att_local);
+
                 idx_c.barrier.wait_with_tile_static_memory_fence();
 
                 // multiply matrices
                 int end = _detail::min(tile_size,k-ii);
                 if ( tile_i == tile_j ) // shortcut for diagonal tiles
+                {
                     for ( auto kk=0; kk<end; ++kk )
                     {
                         out += alpha*(at[kk][i]*att[kk][j]+at[kk][j]*att[kk][i]);
                     }
+                }
                 else
+                {
                     for ( auto kk=0; kk<end; ++kk )
                     {
                         out += alpha*at[kk][i]*att[kk][j];
                     }
+                }
 
                 idx_c.barrier.wait_with_tile_static_memory_fence();
-                if ( tile_i == tile_j ) continue; // diagonal tiles skip some memory time
+                if ( tile_i == tile_j ) 
+                    continue; // diagonal tiles skip some memory time
 
                 // swap matrices, repeat
                 at_local  = _detail::guarded_read<true>(b_mat,a_idx);
                 att_local = _detail::guarded_read<true>(a_mat,bt_idx);
+
+                // apply transpose operation
+                att_local = trans_op::op(att_local);
 
                 idx_c.barrier.wait_with_tile_static_memory_fence();
 
@@ -102,7 +113,7 @@ void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, a
             }
             if ( (uplo==AmpblasUpper && global_j >= global_i) || (uplo==AmpblasLower && global_i >= global_j) && global_i<n && global_j<n )
             {
-                if ( beta != value_type() )
+                if ( beta != beta_type() )
                     out += beta*c_mat[idx_c];
                 c_mat[idx_c] = out;
             }
@@ -112,28 +123,28 @@ void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, a
 
 } // namespace _detail
 
-template <typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void syr2k(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+template <typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
+void syr2k(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
 {
     // tuning parameters
     const int tile_size = 16;
 
     // call main routine
-    _detail::syr2k<tile_size>(uplo, trans, n, k, alpha, a_mat, b_mat, beta, c_mat);
+    _detail::syr2k<tile_size,trans_op>(av, uplo, trans, n, k, alpha, a_mat, b_mat, beta, c_mat);
 }
 
-template <typename value_type>
-void syr2k(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, value_type alpha, const value_type* a, int lda, const value_type* b, int ldb, value_type beta, value_type* c, int ldc)
+template <typename trans_op, typename beta_type, typename value_type>
+void syr2k(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE trans, int n, int k, value_type alpha, const value_type* a, int lda, const value_type* b, int ldb, beta_type beta, value_type* c, int ldc)
 {
     // recursive order adjustment
     if (order == AmpblasRowMajor) 
     {
-        syr2k(AmpblasColMajor, uplo == AmpblasLower ? AmpblasUpper : AmpblasLower, trans == AmpblasNoTrans ? AmpblasTrans : trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
+        syr2k<trans_op>(AmpblasColMajor, uplo == AmpblasLower ? AmpblasUpper : AmpblasLower, trans == AmpblasNoTrans ? AmpblasTrans : trans, n, k, alpha, a, lda, b, ldb, beta, c, ldc);
         return;
     }
 
     // quick return
-    if (n == 0 || ((alpha == value_type() || k == 0) && beta == value_type(1)))
+    if (n == 0 || ((alpha == value_type() || k == 0) && beta == beta_type(1)))
         return;
 
     // derived parameters
@@ -166,14 +177,14 @@ void syr2k(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSP
     // use triangular scale or fill if alpha is zero and beta is not 1
     if ( alpha == value_type() )
     {
-        if ( beta == value_type() )
-            _detail::fill_triangle(uplo,value_type(),c_mat);
+        if ( beta == beta_type() )
+            _detail::fill(get_current_accelerator_view(), uplo, value_type(), c_mat);
         else
-            _detail::scale(uplo,beta,c_mat);
+            _detail::scale(get_current_accelerator_view(), uplo, beta, c_mat);
         return;
     }
 
-    syr2k(uplo, trans, n, k, alpha, a_mat, b_mat, beta, c_mat);
+    syr2k<trans_op>(get_current_accelerator_view(), uplo, trans, n, k, alpha, a_mat, b_mat, beta, c_mat);
 }
 
 

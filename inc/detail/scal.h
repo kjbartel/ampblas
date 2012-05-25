@@ -26,6 +26,12 @@ namespace ampblas {
 // SCAL
 //-------------------------------------------------------------------------
 
+template <typename alpha_type, typename x_vector_type>
+void scal(const concurrency::accelerator_view& av, alpha_type alpha, x_vector_type&& x)
+{
+    _detail::scale(av, x.extent, alpha, x);
+}
+
 // Generic SCAL algorithm for AMPBLAS arrays of type value_type
 template <typename value_type, typename scalar_type>
 void scal(int n, scalar_type alpha, value_type *x, int incx)
@@ -40,7 +46,7 @@ void scal(int n, scalar_type alpha, value_type *x, int incx)
 
     auto x_vec = make_vector_view(n,x,incx);
 
-    _detail::scale(make_extent(n), alpha, x_vec);
+    scal(get_current_accelerator_view(), alpha, x_vec);
 }
 
 } // namespace ampblas

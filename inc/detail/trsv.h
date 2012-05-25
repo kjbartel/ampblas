@@ -24,11 +24,11 @@ namespace ampblas {
 namespace _detail {
 
 template <int tile_size, typename value_type, typename x_vector_type> 
-void trsv_l(enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
+void trsv_l(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
 {
     const int n = x.extent[0];
 
-    concurrency::parallel_for_each(get_current_accelerator_view(), make_extent(tile_size).tile<tile_size>(), [=] (concurrency::tiled_index<tile_size> tid) restrict(amp)
+    concurrency::parallel_for_each(av, make_extent(tile_size).tile<tile_size>(), [=] (concurrency::tiled_index<tile_size> tid) restrict(amp)
     {
         for (int j=0; j<n; j++)
         {
@@ -51,14 +51,14 @@ void trsv_l(enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const c
 }
 
 template <int tile_size, typename value_type, typename x_vector_type> 
-void trsv_u(enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
+void trsv_u(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
 {
     int n = x.extent[0];
 
     // compiler work around
     const int dummy = 1;
 
-    concurrency::parallel_for_each(get_current_accelerator_view(), make_extent(tile_size).tile<tile_size>(), [=] (concurrency::tiled_index<tile_size> tid) restrict(amp)
+    concurrency::parallel_for_each(av, make_extent(tile_size).tile<tile_size>(), [=] (concurrency::tiled_index<tile_size> tid) restrict(amp)
     {
         for (int jj=n-1; jj>=0; jj--)
         {
@@ -91,7 +91,7 @@ void trsv_u(enum AMPBLAS_TRANSPOSE transa, const enum AMPBLAS_DIAG diag, const c
 //-------------------------------------------------------------------------
 
 template <typename value_type, typename x_vector_type> 
-void trsv(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
+void trsv(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x)
 {
     // tuning parameters
     const int tile_size = 256;
@@ -99,12 +99,12 @@ void trsv(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DI
     if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
     {
         // lower + no trans <==> upper + trans
-        _detail::trsv_l<tile_size>(transa, diag, a, x);
+        _detail::trsv_l<tile_size>(av, transa, diag, a, x);
     }
     else
     {
         // upper + no trans <==> lower + trans
-        _detail::trsv_u<tile_size>(transa, diag, a, x);
+        _detail::trsv_u<tile_size>(av, transa, diag, a, x);
     }
 }
 
@@ -137,7 +137,7 @@ void trsv(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPO
     auto a_mat = make_matrix_view(n, n, a, lda);
 
     // forward to tuning routine
-    trsv(uplo, transa, diag, a_mat, x_vec);
+    trsv(get_current_accelerator_view(), uplo, transa, diag, a_mat, x_vec);
 }
 
 } // namespace ampblas

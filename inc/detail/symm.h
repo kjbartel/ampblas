@@ -23,8 +23,8 @@
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+template <int tile_size, typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
+void symm(const concurrency::accelerator_view& av, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
 {
     typedef a_value_type value_type;
 
@@ -39,7 +39,7 @@ void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_ty
 
     if ( side == AmpblasLeft )
         concurrency::parallel_for_each (
-            get_current_accelerator_view(),
+            av,
             e.tile<tile_size,tile_size>(),
             [=] (concurrency::tiled_index<tile_size,tile_size> idx_c) restrict(amp)
             {
@@ -83,7 +83,7 @@ void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_ty
                     {
                         // need to grab the transpose tile - and transpose it as we read
                         a_idx = concurrency::index<2>(tile_i_origin+j,tile_origin+i);
-                        at[j][i] = a_mat[a_idx];
+                        at[j][i] = trans_op::op(a_mat[a_idx]);
                     }
 
                     auto b_idx = concurrency::index<2>(global_j,tile_origin+i);
@@ -111,7 +111,7 @@ void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_ty
         );
     else
         concurrency::parallel_for_each (
-            get_current_accelerator_view(),
+            av,
             e.tile<tile_size,tile_size>(),
             [=] (concurrency::tiled_index<tile_size,tile_size> idx_c) restrict(amp)
             {
@@ -155,7 +155,7 @@ void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_ty
                     {
                         // need to grab the transpose tile - and transpose it as we read
                         a_idx = concurrency::index<2>(tile_origin+j,tile_j_origin+i);
-                        at[j][i] = a_mat[a_idx];
+                        at[j][i] = trans_op::op(a_mat[a_idx]);
                     }
 
                     auto b_idx = concurrency::index<2>(tile_origin+j,global_i);
@@ -185,23 +185,23 @@ void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_ty
 
 } // namespace _detail
 
-template <typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void symm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+template <typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
+void symm(const concurrency::accelerator_view& av, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
 {
     // tuning parameters
     const int tile_size = 16;
 
     // main routine
-    _detail::symm<tile_size>(side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
+    _detail::symm<tile_size,trans_op>(av, side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
 }
 
-template <typename value_type>
+template <typename trans_op, typename value_type>
 void symm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, int m, int n, value_type alpha, const value_type* a, int lda, const value_type* b, int ldb, value_type beta, value_type* c, int ldc)
 {
     // recursive order adjustment
     if (order == AmpblasRowMajor)
     {
-        symm(AmpblasColMajor, side == AmpblasLeft ? AmpblasRight : AmpblasLeft, uplo = AmpblasUpper ? AmpblasLower : AmpblasUpper, n, m, alpha, b, ldb, a, lda, beta, c, ldc);
+        symm<trans_op>(AmpblasColMajor, side == AmpblasLeft ? AmpblasRight : AmpblasLeft, uplo = AmpblasUpper ? AmpblasLower : AmpblasUpper, n, m, alpha, b, ldb, a, lda, beta, c, ldc);
         return;
     }
     
@@ -239,14 +239,14 @@ void symm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
     if ( alpha == value_type() )
     {
         if ( beta == value_type() )
-            _detail::fill(make_extent(m,n),value_type(),c_mat);
+            _detail::fill(get_current_accelerator_view(), make_extent(m,n), value_type(), c_mat);
         else
-            _detail::scale(make_extent(m,n),beta,c_mat);
+            _detail::scale(get_current_accelerator_view(), make_extent(m,n), beta, c_mat);
         return;
     }
 
     // forward to tuning routine
-    symm(side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
+    symm<trans_op>(get_current_accelerator_view(), side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
 }
 
 } // namespace ampblas

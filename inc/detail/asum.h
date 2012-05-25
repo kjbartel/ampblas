@@ -27,8 +27,8 @@ namespace _detail {
 // asum_helper
 //   Functor for ASUM reduction 
 //
-
-template<typename ret_type, typename value_type, typename x_type, typename functor>
+    
+template <typename ret_type, typename value_type, typename x_type, typename functor>
 struct asum_helper
 {
     asum_helper(const value_type& value, const functor& sum_op) restrict(cpu, amp)
@@ -39,7 +39,8 @@ struct asum_helper
     // computes the sum of lhs and the absolute value of X[idx] and stores results in lhs
     void local_reduce(value_type& lhs, int idx, const x_type& X) const restrict(cpu, amp)
     {
-        lhs += abs(X[concurrency::index<1>(idx)]);
+        // this uses a non-standard absolute value calculation
+        lhs += abs_1(X[concurrency::index<1>(idx)]);
     }
 
     // reduction of container vec
@@ -60,10 +61,13 @@ struct asum_helper
 //-------------------------------------------------------------------------
 
 template <typename x_type>
-typename real_type<typename x_type::value_type>::type asum(int n, const x_type& X)
+typename real_type<typename x_type::value_type>::type asum(const concurrency::accelerator_view& av, const x_type& x)
 {
     typedef typename x_type::value_type T;
     typedef typename real_type<T>::type real_type;
+
+    // size
+    const int n = x.extent[0];
 
     // tuning parameters
     static const unsigned int tile_size = 128;
@@ -72,7 +76,7 @@ typename real_type<typename x_type::value_type>::type asum(int n, const x_type& 
     auto func = _detail::asum_helper<real_type, real_type, x_type, _detail::sum<real_type>>(real_type(), _detail::sum<real_type>());
 
     // call generic 1D reduction
-    return _detail::reduce<tile_size, max_tiles, real_type, real_type>(n, X, func);
+    return _detail::reduce<tile_size, max_tiles, real_type, real_type>(av, n, x, func);
 }
 
 template <typename value_type>
@@ -90,7 +94,7 @@ typename real_type<value_type>::type asum(const int n, const value_type* x, cons
 
     auto x_vec = make_vector_view(n, x, incx);
 
-    return asum(n, x_vec);
+    return asum(get_current_accelerator_view(), x_vec);
 }
 
 } // namespace ampblas

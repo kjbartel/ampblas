@@ -87,14 +87,9 @@ public:
         // ampblas data
         ampblas_test_vector<value_type> x_amp(x);
 
-		// cblas types
-		cblas::uplo uplo = (p.uplo == AmpblasLower ? cblas::uplo::lower : cblas::uplo::upper);
-		cblas::transpose trans = (p.trans == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-		cblas::diag diag = (p.diag == AmpblasNonUnit ? cblas::diag::non_unit : cblas::diag::unit);
-
         // test references
         start_reference_test();
-		cblas::xTRMV(uplo, trans, diag, p.n, cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc());
+		cblas::xTRMV(cblas_cast(p.uplo), cblas_cast(p.trans), cblas_cast(p.diag), p.n, cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc());
         stop_reference_test();
 
         // test ampblas
@@ -127,18 +122,20 @@ public:
 
 		std::vector<int> lda_offset;
 		lda_offset.push_back(0);
-		lda_offset.push_back(4);
+		//lda_offset.push_back(4);
 
 		std::vector<int> incx;
 		incx.push_back(1);
-		incx.push_back(-1);
-		incx.push_back(2);
+		//incx.push_back(-1);
+		//incx.push_back(2);
 
         paramter_exploder(uplo,transa,diag,n,lda_offset,incx);
     }
 };
 
-REGISTER_TEST(trmv_test, float);
-REGISTER_TEST(trmv_test, double);
+REGISTER_TEST(trmv_test, float)
 REGISTER_TEST(trmv_test, complex_float);
+
+// runtime error in release mode
+REGISTER_TEST(trmv_test, double);
 REGISTER_TEST(trmv_test, complex_double);

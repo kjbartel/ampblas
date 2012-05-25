@@ -25,7 +25,7 @@ namespace _detail {
 
 // Generic GEMM algorithm on AMP array_views of type value_type
 template <int tile_size, bool guarded, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, typename value_type>
-void gemm(value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
+void gemm(const concurrency::accelerator_view& av, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
 {
     int k_max = (transa == AmpblasNoTrans ? a.extent[0] : a.extent[1]);
 
@@ -36,7 +36,10 @@ void gemm(value_type alpha, const concurrency::array_view<const value_type,2>& a
     const int tiles_n = (n+tile_size-1)/tile_size;
     auto e = make_extent(tile_size*tiles_m, tile_size*tiles_n);
 
-    concurrency::parallel_for_each(get_current_accelerator_view(), e.tile<tile_size,tile_size>(), [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
+    concurrency::parallel_for_each(
+        av,
+        e.tile<tile_size,tile_size>(), 
+        [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
 	{
         // shared memory buffers
         tile_static value_type a_tile[tile_size][tile_size];
@@ -66,6 +69,12 @@ void gemm(value_type alpha, const concurrency::array_view<const value_type,2>& a
             a_local = _detail::guarded_read<guarded>(a, a_idx);
             b_local = _detail::guarded_read<guarded>(b, b_idx);
 
+            // apply transpose operations
+            if (transa == AmpblasConjTrans)
+                a_local = _detail::conjugate::op(a_local);
+            if (transb == AmpblasConjTrans)
+                b_local = _detail::conjugate::op(b_local);
+
             // wait for reads
             tid.barrier.wait_with_tile_static_memory_fence();
 
@@ -94,7 +103,7 @@ void gemm(value_type alpha, const concurrency::array_view<const value_type,2>& a
 
 // Generic GEMM algorithm on AMP array_views of type value_type
 template <typename value_type>
-void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
+void gemm(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, value_type beta, const concurrency::array_view<value_type,2>& c)
 {
     // tuning parameters
     const int tile_size = 16;
@@ -106,12 +115,17 @@ void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_ty
         if (transb == AmpblasNoTrans)
         {
             // GEMM_NN
-            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasNoTrans>(alpha, a, b, beta, c);
+            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasNoTrans>(av, alpha, a, b, beta, c);
         }
         else if (transb == AmpblasTrans)
         {
             // GEMM_NT
-            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasTrans>(alpha, a, b, beta, c);
+            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasTrans>(av, alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasConjTrans)
+        {
+            // GEMM_NC
+            _detail::gemm<tile_size, guarded, AmpblasNoTrans, AmpblasConjTrans>(av, alpha, a, b, beta, c);
         }
     }
     else if (transa == AmpblasTrans)
@@ -119,12 +133,35 @@ void gemm(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_TRANSPOSE transb, value_ty
         if (transb == AmpblasNoTrans)
         {
             // GEMM_TN
-            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasNoTrans>(alpha, a, b, beta, c);
+            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasNoTrans>(av, alpha, a, b, beta, c);
         }
         else if (transb == AmpblasTrans)
         {
             // GEMM_TT
-            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasTrans>(alpha, a, b, beta, c);
+            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasTrans>(av, alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasConjTrans)
+        {
+            // GEMM_TC
+            _detail::gemm<tile_size, guarded, AmpblasTrans, AmpblasConjTrans>(av, alpha, a, b, beta, c);
+        }
+    }
+    else if (transa == AmpblasConjTrans)
+    {
+    if (transb == AmpblasNoTrans)
+        {
+            // GEMM_CN
+            _detail::gemm<tile_size, guarded, AmpblasConjTrans, AmpblasNoTrans>(av, alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasTrans)
+        {
+            // GEMM_CT
+            _detail::gemm<tile_size, guarded, AmpblasConjTrans, AmpblasTrans>(av, alpha, a, b, beta, c);
+        }
+        else if (transb == AmpblasConjTrans)
+        {
+            // GEMM_CC
+            _detail::gemm<tile_size, guarded, AmpblasConjTrans, AmpblasConjTrans>(av, alpha, a, b, beta, c);
         }
     }
 }
@@ -174,20 +211,20 @@ void gemm(enum AMPBLAS_ORDER order, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_
 	auto a_mat = make_matrix_view(a_row, a_col, a, lda);
 	auto b_mat = make_matrix_view(b_row, b_col, b, ldb);
 	auto c_mat = make_matrix_view(m, n, c, ldc);
-
+    
     // special cases
 	if (alpha == value_type())
 	{
 		if (beta == value_type())
-			_detail::fill(c_mat.extent, value_type(), c_mat);
+			_detail::fill(get_current_accelerator_view(), c_mat.extent, value_type(), c_mat);
 		else
-			_detail::scale(c_mat.extent, beta, c_mat);
+			_detail::scale(get_current_accelerator_view(), c_mat.extent, beta, c_mat);
 
 		return;
 	}
 
     // forward to tuning routine
-    gemm(transa, transb, alpha, a_mat, b_mat, beta, c_mat);
+    gemm(get_current_accelerator_view(), transa, transb, alpha, a_mat, b_mat, beta, c_mat);
 }
 
 } // namespace ampblas

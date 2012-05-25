@@ -84,6 +84,57 @@ template <>           struct cblas_type<complex_double> { typedef cblas::complex
 template <typename T> typename cblas_type<T>::type* cblas_cast(T* ptr) { return reinterpret_cast<typename cblas_type<T>::type*>(ptr); }
 template <typename T> typename cblas_type<T>::type cblas_cast(T val) { return *reinterpret_cast<typename cblas_type<T>::type*>(&val); }
 
+// ampblas (used in testing) option --> cblas option
+inline cblas::transpose cblas_cast(const AMPBLAS_TRANSPOSE& trans)
+{
+    switch(trans)
+    {
+    case AmpblasNoTrans:
+        return cblas::transpose::no_trans;
+    case AmpblasTrans:
+        return cblas::transpose::trans;
+    case AmpblasConjTrans:
+    default:
+        return cblas::transpose::conj_trans;
+    }
+}
+
+inline cblas::side cblas_cast(const AMPBLAS_SIDE& side)
+{
+    switch(side)
+    {
+    case AmpblasLeft:
+        return cblas::side::left;
+    case AmpblasRight:
+    default:
+        return cblas::side::right;
+    }
+}
+
+inline cblas::uplo cblas_cast(const AMPBLAS_UPLO& uplo)
+{
+    switch(uplo)
+    {
+    case AmpblasUpper:
+        return cblas::uplo::upper;
+    case AmpblasLower:
+    default:
+        return cblas::uplo::lower;
+    }
+}
+
+inline cblas::diag cblas_cast(const AMPBLAS_DIAG& diag)
+{
+    switch(diag)
+    {
+    case AmpblasNonUnit:
+        return cblas::diag::non_unit;
+    case AmpblasUnit:
+    default:
+        return cblas::diag::unit;
+    }
+}
+
 // test types --> ampcblas types
 template <typename T> struct ampcblas_type                 { typedef typename T       type; }; 
 template <>           struct ampcblas_type<complex_float>  { typedef ampblas_fcomplex type; };
@@ -496,7 +547,8 @@ value_type random_value(value_type min, value_type max)
 template <typename value_type>
 ampblas::complex<value_type> random_value(ampblas::complex<value_type> min, ampblas::complex<value_type> max)
 {
-    return ampblas::complex<value_type>(random_value(min.real(),max.real()), random_value(min.imag(),max.imag()));
+    // only real values used to calculate random range
+    return ampblas::complex<value_type>(random_value(min.real(),max.real()), random_value(min.real(),max.real()));
 }
 
 template <typename value_type>

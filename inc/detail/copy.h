@@ -28,6 +28,12 @@ namespace ampblas {
 //   overlpped.
 //-------------------------------------------------------------------------
 
+template <typename x_type, typename y_type>
+void copy(const concurrency::accelerator_view& av, const x_type& x, y_type& y)
+{
+    _detail::copy(av, x.extent, x, y);
+}
+
 // Generic COPY algorithm for AMPBLAS arrays of type T
 template <typename value_type>
 void copy(int n, const value_type *x, int incx, value_type *y, int incy)
@@ -45,7 +51,7 @@ void copy(int n, const value_type *x, int incx, value_type *y, int incy)
     auto x_vec = make_vector_view(n, x, incx);
     auto y_vec = make_vector_view(n, y, incy);
 
-	_detail::copy(x_vec.extent, x_vec, y_vec);
+	copy(get_current_accelerator_view(), x_vec, y_vec);
 }
 
 } // namespace ampblas

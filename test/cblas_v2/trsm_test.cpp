@@ -108,15 +108,9 @@ public:
         // ampblas data
         ampblas_test_matrix<value_type> B_amp(B);     
 
-        // cblas types
-		cblas::side side = (p.side == AmpblasLeft ? cblas::side::left : cblas::side::right);
-		cblas::uplo uplo = (p.uplo == AmpblasLower ? cblas::uplo::lower : cblas::uplo::upper);
-		cblas::transpose transa = (p.transa == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-		cblas::diag diag = (p.diag == AmpblasNonUnit ? cblas::diag::non_unit : cblas::diag::unit);
-
         // test references
         start_reference_test();
-		cblas::xTRSM(side, uplo, transa, diag, p.m, p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld());
+		cblas::xTRSM(cblas_cast(p.side), cblas_cast(p.uplo), cblas_cast(p.transa), cblas_cast(p.diag), p.m, p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld());
         stop_reference_test();
 
         // test ampblas
@@ -142,6 +136,7 @@ public:
 		std::vector<enum AMPBLAS_TRANSPOSE> transa;
 		transa.push_back(AmpblasNoTrans);
 		transa.push_back(AmpblasTrans);
+        transa.push_back(AmpblasConjTrans);
 
 		std::vector<enum AMPBLAS_DIAG> diag;
 		diag.push_back(AmpblasNonUnit);
@@ -149,14 +144,13 @@ public:
 
 		std::vector<int> m;
         m.push_back(5);
-        m.push_back(16);
         m.push_back(50);  
         m.push_back(64);
         m.push_back(96);
         
         std::vector<int> n;
+        n.push_back(8);
         n.push_back(5);
-        n.push_back(16);
         n.push_back(50);
         n.push_back(64);
         n.push_back(96);

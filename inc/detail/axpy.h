@@ -27,14 +27,17 @@ namespace ampblas {
 //  a scalar alpha times a container X plus a container Y.
 //-------------------------------------------------------------------------
 
-// Generic AXPY algorithm on any multi-dimensional container
-template <int rank, typename alpha_type, typename x_type, typename y_type>
-void axpy(const concurrency::extent<rank>& e, alpha_type&& alpha, x_type&& X, y_type&& Y)
+template <typename alpha_type, typename x_type, typename y_type>
+void axpy(const concurrency::accelerator_view& av, const alpha_type& alpha, const x_type& x, y_type& y)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        Y[idx] += alpha * X[idx];
-    });
+    concurrency::parallel_for_each(
+        av, 
+        x.extent, 
+        [=] (concurrency::index<1> idx) restrict(amp) 
+        {
+            y[idx] += alpha * x[idx];
+        }
+    );
 }
 
 // Generic AXPY algorithm for AMPBLAS arrays of type T
@@ -54,7 +57,7 @@ void axpy(int n, value_type alpha, const value_type *x, int incx, value_type *y,
     auto x_vec = make_vector_view(n, x, incx);
     auto y_vec = make_vector_view(n, y, incy);
 
-    axpy(make_extent(n), alpha, x_vec, y_vec); 
+    axpy(get_current_accelerator_view(), alpha, x_vec, y_vec); 
 }
 
 } // namespace ampblas

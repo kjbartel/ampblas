@@ -72,13 +72,12 @@ public:
 
     void run_cblas_test(const typed_parameters& p)
     {
-		// column major
 		int lda = p.m + p.lda_offset;
 
         // reference data
         ampblas_test_matrix<value_type> A(p.m, p.n, lda);
-		ampblas_test_vector<value_type> x(p.n, p.incx);
-		test_vector<value_type> y(p.m, p.incy);
+		ampblas_test_vector<value_type> x((p.transa == AmpblasNoTrans ? p.n : p.m), p.incx);
+		test_vector<value_type> y((p.transa == AmpblasNoTrans ? p.m : p.n), p.incy);
 
         // generate data
         randomize(A);
@@ -88,12 +87,9 @@ public:
         // ampblas data
         ampblas_test_vector<value_type> y_amp(y);
 
-		// cblas types
-		cblas::transpose transa = (p.transa == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-
         // test references
         start_reference_test();
-		cblas::xGEMV(transa, p.m, p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc(), cblas_cast(p.beta), cblas_cast(y.data()), y.inc());
+		cblas::xGEMV(cblas_cast(p.transa), p.m, p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc(), cblas_cast(p.beta), cblas_cast(y.data()), y.inc());
         stop_reference_test();
 
         // test ampblas
@@ -110,7 +106,8 @@ public:
         // bulk test example
 		std::vector<enum AMPBLAS_TRANSPOSE> transa;
 		transa.push_back(AmpblasNoTrans);
-		//transa.push_back(AmpblasTrans);
+		transa.push_back(AmpblasTrans);
+        transa.push_back(AmpblasConjTrans);
 
 		std::vector<int> m;
         m.push_back(16);

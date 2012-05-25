@@ -23,11 +23,9 @@
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, typename alpha_type, typename a_value_type, typename b_value_type, typename c_value_type>
-void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, const concurrency::array_view<c_value_type,2>& c_mat )
+template <int tile_size, typename value_type>
+void trmm(const concurrency::accelerator_view& av, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, int m, int n, value_type alpha, const concurrency::array_view<const value_type,2>& a_mat, const concurrency::array_view<const value_type,2>& b_mat, const concurrency::array_view<value_type,2>& c_mat )
 {
-    typedef a_value_type value_type;
-
     // pad() has undesirable functionality - pads even when unnecessary
     // auto e = c_mat.extent.tile<16,16>().pad();
 
@@ -42,7 +40,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
         if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
         {
             concurrency::parallel_for_each (
-                get_current_accelerator_view(),
+                av,
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
@@ -107,7 +105,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
         else // upper + notrans or lower + trans
         {
             concurrency::parallel_for_each (
-                get_current_accelerator_view(),
+                av,
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
@@ -133,7 +131,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                             // diagonal tile, treat specially
                             auto a_idx = concurrency::index<2>(tile_origin+j,tile_origin+i);
                             if ( ( transa == AmpblasNoTrans && i <= j ) || ( transa != AmpblasNoTrans && i >= j ) )
-                                a_local = ( diag == AmpblasUnit && i==j ) ? value_type(1) : _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = ( diag == AmpblasUnit && i==j ) ? value_type(1) : guarded_read<true>(a_mat,a_idx);
                             else
                                 a_local = value_type();
                         }
@@ -143,16 +141,16 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                             if ( transa == AmpblasNoTrans )
                             {
                                 auto a_idx = concurrency::index<2>(tile_origin+j,global_i);
-                                a_local = _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = guarded_read<true>(a_mat,a_idx);
                             }
                             else
                             {
                                 auto a_idx = concurrency::index<2>(tile_i_origin+j,tile_origin+i);
-                                a_local = _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = guarded_read<true>(a_mat,a_idx);
                             }
                         }
                         auto b_idx = concurrency::index<2>(global_j, tile_origin+i);
-                        b[i][j] = _detail::guarded_read<true>(b_mat,b_idx);
+                        b[i][j] = guarded_read<true>(b_mat,b_idx);
 
                         idx_b.barrier.wait_with_tile_static_memory_fence();
 
@@ -175,7 +173,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
         if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
         {
             concurrency::parallel_for_each (
-                get_current_accelerator_view(),
+                av,
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
@@ -201,7 +199,7 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                             // diagonal tile, treat specially
                             auto a_idx = concurrency::index<2>(tile_origin+j,tile_origin+i);
                             if ( ( transa == AmpblasNoTrans && i >= j ) || ( transa != AmpblasNoTrans && i <= j ) )
-                                a_local = ( diag == AmpblasUnit && i==j ) ? value_type(1) : _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = ( diag == AmpblasUnit && i==j ) ? value_type(1) : guarded_read<true>(a_mat,a_idx);
                             else
                                 a_local = value_type();
                         }
@@ -211,16 +209,16 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
                             if ( transa == AmpblasNoTrans )
                             {
                                 auto a_idx = concurrency::index<2>(global_j,tile_origin+i);
-                                a_local = _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = guarded_read<true>(a_mat,a_idx);
                             }
                             else
                             {
                                 auto a_idx = concurrency::index<2>(tile_origin+j,tile_j_origin+i);
-                                a_local = _detail::guarded_read<true>(a_mat,a_idx);
+                                a_local = guarded_read<true>(a_mat,a_idx);
                             }
                         }
                         auto b_idx = concurrency::index<2>(tile_origin+j,global_i);
-                        b[i][j] = _detail::guarded_read<true>(b_mat,b_idx);
+                        b[i][j] = guarded_read<true>(b_mat,b_idx);
 
                         idx_b.barrier.wait_with_tile_static_memory_fence();
 
@@ -230,17 +228,15 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
 
                         idx_b.barrier.wait_with_tile_static_memory_fence();
                     }
-                    if ( global_i<m && global_j<n )
-                    {
-                        c_mat[idx_b] = out;
-                    }
+
+                    guarded_write<true>(c_mat, idx_b, out);
                 }
             );
         }
         else // upper + notrans or lower + trans
         {
             concurrency::parallel_for_each (
-                get_current_accelerator_view(),
+                av,
                 e.tile<tile_size,tile_size>(),
                 [=] (concurrency::tiled_index<tile_size,tile_size> idx_b) restrict(amp)
                 {
@@ -295,10 +291,8 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
 
                         idx_b.barrier.wait_with_tile_static_memory_fence();
                     }
-                    if (global_i<m && global_j<n)
-                    {
-                        c_mat[idx_b] = out;
-                    }
+
+                    guarded_write<true>(c_mat, idx_b, out);
                 }
             );
         }
@@ -308,13 +302,13 @@ void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE
 } // namespace _detail
 
 template <typename value_type>
-void trmm(enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, int m, int n, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, const concurrency::array_view<value_type,2>& c)
+void trmm(const concurrency::accelerator_view& av, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, int m, int n, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<const value_type,2>& b, const concurrency::array_view<value_type,2>& c)
 {
     // tuning parameters
     const int tile_size = 16;
 
     // call implementation
-    _detail::trmm<tile_size>(side, uplo, transa, diag, m, n, alpha, a, b, c);
+    _detail::trmm<tile_size>(av, side, uplo, transa, diag, m, n, alpha, a, b, c);
 }
 
 template <typename value_type>
@@ -356,7 +350,7 @@ void trmm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
     // fill with zeros if alpha is zero
     if (alpha == value_type())
     {
-        _detail::fill(b_mat.extent, value_type(), b_mat);
+        _detail::fill(get_current_accelerator_view(), b_mat.extent, value_type(), b_mat);
         return;
     }
 
@@ -366,7 +360,7 @@ void trmm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
     c_mat.discard_data();
 
     // forward to tuning routine
-    trmm(side, uplo, transa, diag, m, n, alpha, a_mat, b_mat_const, c_mat);
+    trmm(get_current_accelerator_view(), side, uplo, transa, diag, m, n, alpha, a_mat, b_mat_const, c_mat);
 
     // copy workspace to answer
     copy(c_mat, b_mat);

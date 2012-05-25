@@ -26,34 +26,38 @@ extern "C" {
 
 void ampblas_ssyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const float alpha, const float *A, const int lda, const float *B, const int ldb, const float beta, float *C, const int ldc)
 {
-    AMPBLAS_CHECKED_CALL( ampblas::syr2k(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc) );
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::noop>(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc) );
 }
 
 void ampblas_dsyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const double alpha, const double *A, const int lda, const double *B, const int ldb, const double beta, double *C, const int ldc)
 {
-    AMPBLAS_CHECKED_CALL( ampblas::syr2k(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc) );
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::noop>(Order, Uplo, Trans, N, K, alpha, A, lda, B, ldb, beta, C, ldc) );
 }
 
 void ampblas_csyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const ampblas_fcomplex* alpha, const ampblas_fcomplex *A, const int lda, const ampblas_fcomplex *B, const int ldb, const ampblas_fcomplex* beta, ampblas_fcomplex *C, const int ldc)
 {
     const fcomplex calpha = *ampblas_cast(alpha);
     const fcomplex cbeta  = *ampblas_cast(beta);
-    AMPBLAS_CHECKED_CALL( ampblas::syr2k(Order, Uplo, Trans, N, K, calpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, cbeta, ampblas_cast(C), ldc) );
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::noop>(Order, Uplo, Trans, N, K, calpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, cbeta, ampblas_cast(C), ldc) );
 }
 
 void ampblas_zsyr2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const ampblas_dcomplex* alpha, const ampblas_dcomplex *A, const int lda, const ampblas_dcomplex *B, const int ldb, const ampblas_dcomplex* beta, ampblas_dcomplex *C, const int ldc)
 {
     const dcomplex zalpha = *ampblas_cast(alpha);
     const dcomplex zbeta  = *ampblas_cast(beta);
-    AMPBLAS_CHECKED_CALL( ampblas::syr2k(Order, Uplo, Trans, N, K, zalpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, zbeta, ampblas_cast(C), ldc) );
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::noop>(Order, Uplo, Trans, N, K, zalpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, zbeta, ampblas_cast(C), ldc) );
 }
 
-// void ampblas_cher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const float alpha, const ampblas_fcomplex *A, const int lda, const ampblas_fcomplex *B, const int ldb, const float beta, ampblas_fcomplex *C, const int ldc)
-// {   
-// }
-// 
-// void ampblas_zher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const double alpha, const ampblas_dcomplex *A, const int lda, const ampblas_dcomplex *B, const int ldb, const double beta, ampblas_dcomplex *C, const int ldc)
-// {
-// }
+void ampblas_cher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const ampblas_fcomplex* alpha, const ampblas_fcomplex *A, const int lda, const ampblas_fcomplex *B, const int ldb, const float beta, ampblas_fcomplex *C, const int ldc)
+{   
+    const fcomplex calpha = *ampblas_cast(alpha);
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::conjugate>(Order, Uplo, Trans, N, K, calpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, beta, ampblas_cast(C), ldc) );
+}
+
+void ampblas_zher2k(const enum AMPBLAS_ORDER Order, const enum AMPBLAS_UPLO Uplo, const enum AMPBLAS_TRANSPOSE Trans, const int N, const int K, const ampblas_dcomplex* alpha, const ampblas_dcomplex *A, const int lda, const ampblas_dcomplex *B, const int ldb, const double beta, ampblas_dcomplex *C, const int ldc)
+{
+    const dcomplex zalpha = *ampblas_cast(alpha);
+    AMPBLAS_CHECKED_CALL( ampblas::syr2k<ampblas::_detail::conjugate>(Order, Uplo, Trans, N, K, zalpha, ampblas_cast(A), lda, ampblas_cast(B), ldb, beta, ampblas_cast(C), ldc) );
+}
 
 } // extern "C"

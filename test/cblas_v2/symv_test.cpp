@@ -92,12 +92,9 @@ public:
         // ampblas data
         ampblas_test_vector<value_type> y_amp(y);
 
-		// cblas types
-        cblas::uplo uplo = (p.uplo == AmpblasUpper ? cblas::uplo::upper : cblas::uplo::lower);
-
         // test references
         start_reference_test();
-		cblas::xSYMV(uplo, p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc(), cblas_cast(p.beta), cblas_cast(y.data()), y.inc());
+		cblas::xSYMV(cblas_cast(p.uplo), p.n, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(x.data()), x.inc(), cblas_cast(p.beta), cblas_cast(y.data()), y.inc());
         stop_reference_test();
 
         // test ampblas
@@ -150,3 +147,7 @@ public:
 
 REGISTER_TEST(symv_test, float);
 REGISTER_TEST(symv_test, double);
+
+// Not yet working
+// REGISTER_TEST(symv_test, complex_float);
+// REGISTER_TEST(symv_test, complex_double);

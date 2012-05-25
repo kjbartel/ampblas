@@ -39,7 +39,7 @@ struct amax_helper
     // gets the maximum of the absolute values of lhs and X[idx], and stores in lhs
     void local_reduce(value_type& lhs, int idx, const x_type& X) const restrict(cpu, amp)
     {
-        lhs = _detail::max(lhs, value_type(idx+1, abs( X[concurrency::index<1>(idx)] )));
+        lhs = _detail::max(lhs, value_type(idx+1, abs_1( X[concurrency::index<1>(idx)] )));
     }
 
     // finds the maximum in a container and returns its position
@@ -61,11 +61,14 @@ struct amax_helper
 //-------------------------------------------------------------------------
 
 template <typename int_type, typename x_type>
-int_type amax(int n, const x_type& X)
+int_type amax(const concurrency::accelerator_view& av, const x_type& x)
 {
     typedef typename x_type::value_type value_type;
     typedef typename real_type<value_type>::type real_type;
     typedef typename indexed_type<int_type, real_type> indexed_real_type;
+
+    // size
+    const int n = x.extent[0];
 
     // static and const for view in parallel section 
     static const unsigned int tile_size = 64;
@@ -75,7 +78,7 @@ int_type amax(int n, const x_type& X)
     auto func = _detail::amax_helper<indexed_real_type, indexed_real_type, x_type, _detail::maximum<indexed_real_type>>(x0, _detail::maximum<indexed_real_type>());
 
     // call generic 1D reduction
-    indexed_real_type max = _detail::reduce<tile_size, max_tiles, indexed_real_type, indexed_real_type>(n, X, func);
+    indexed_real_type max = _detail::reduce<tile_size, max_tiles, indexed_real_type, indexed_real_type>(av, n, x, func);
 
     // return index
     return max.idx;
@@ -92,7 +95,8 @@ index_type amax(const int n, const value_type* x, const int incx)
 		argument_error("amax", 2);
 
     auto x_vec = make_vector_view(n, x, incx);
-    return amax<index_type>(n, x_vec);
+
+    return amax<index_type>(get_current_accelerator_view(), x_vec);
 } 
 
 } // namespace ampblas

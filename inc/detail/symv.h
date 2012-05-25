@@ -30,32 +30,62 @@ namespace ampblas {
 //   values.  
 //-------------------------------------------------------------------------
 
-template <typename value_type, typename x_vector_type, typename y_vector_type>
-void symv(enum AMPBLAS_UPLO uplo, value_type alpha, const concurrency::array_view<const value_type,2>& a, x_vector_type x, value_type beta, y_vector_type y)
+template <typename trans_op, typename value_type, typename x_vector_type, typename y_vector_type>
+void symv(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, value_type alpha, const concurrency::array_view<const value_type,2>& a, x_vector_type x, value_type beta, y_vector_type y)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
+    concurrency::parallel_for_each(av, y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
     {
         value_type result = value_type();
         
         for (int n = 0; n < x.extent[0]; ++n)
         {
-            concurrency::index<2> a_idx = ((uplo == AmpblasLower) ^ (n > y_idx[0]) ? concurrency::index<2>(n, y_idx[0]) : concurrency::index<2>(y_idx[0], n));
-			concurrency::index<1> x_idx(n);
+            concurrency::index<2> a_idx;
+            concurrency::index<1> x_idx(n);
 
-            result += a[a_idx] * x[x_idx];
+            value_type a_value;
+
+            if (uplo == AmpblasLower)
+            {
+                if (n > y_idx[0])
+                {
+                    a_idx = concurrency::index<2>(y_idx[0], n);
+                    a_value = a[a_idx];
+                }
+                else
+                {
+                    a_idx = concurrency::index<2>(n, y_idx[0]);
+                    a_value = trans_op::op(a[a_idx]);
+                }
+            }
+            else 
+            {
+                if (n < y_idx[0])
+                {
+                    a_idx = concurrency::index<2>(y_idx[0], n);
+                    a_value = a[a_idx];
+                }
+                else
+                {
+                    a_idx = concurrency::index<2>(n, y_idx[0]);
+                    a_value =  trans_op::op(a[a_idx]);
+                }
+            }			
+            
+            result += a_value * x[x_idx];
         }
 
         y[y_idx] = alpha * result + beta * y[y_idx];
+
     });
 }
 
-template <typename value_type>
+template <typename trans_op, typename value_type>
 void symv(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, int n, value_type alpha, const value_type *a, int lda, const value_type* x, int incx, value_type beta, value_type *y, int incy)
 {
     // recursive order adjustment
 	if (order == AmpblasRowMajor)
     {
-        symv(AmpblasColMajor, uplo == AmpblasLower ? AmpblasUpper : AmpblasLower,  n, alpha, a, lda, x, incx, beta, y, incy);
+        symv<trans_op>(AmpblasColMajor, uplo == AmpblasLower ? AmpblasUpper : AmpblasLower,  n, alpha, a, lda, x, incx, beta, y, incy);
         return;
     }
 
@@ -81,7 +111,7 @@ void symv(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, int n, value_type al
     auto a_mat = make_matrix_view(n, n, a, lda);
 
 	// call generic implementation
-	symv(uplo, alpha, a_mat, x_vec, beta, y_vec);
+	symv<trans_op>(get_current_accelerator_view(), uplo, alpha, a_mat, x_vec, beta, y_vec);
 }
 
 } // namespace ampblas

@@ -30,9 +30,9 @@ namespace _detail {
 //-------------------------------------------------------------------------
 
 template <typename value_type, typename x_vector_type, typename y_vector_type> 
-void trmv_l(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
+void trmv_l(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
+    concurrency::parallel_for_each(av, y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
     {
         value_type result = value_type();
 
@@ -49,11 +49,11 @@ void trmv_l(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurr
 }
 
 template <typename value_type, typename x_vector_type, typename y_vector_type> 
-void trmv_u(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
+void trmv_u(const concurrency::accelerator_view& av, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
 {
     int n = y.extent[0];
 
-    concurrency::parallel_for_each(get_current_accelerator_view(), y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
+    concurrency::parallel_for_each(av, y.extent, [=] (concurrency::index<1> y_idx) restrict(amp)
     {
         value_type result = value_type();
        
@@ -72,12 +72,12 @@ void trmv_u(enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurr
 } // namespace _detail
 
 template <typename value_type, typename x_vector_type, typename y_vector_type> 
-void trmv(enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
+void trmv(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_DIAG diag, const concurrency::array_view<const value_type,2>& a, x_vector_type& x, y_vector_type& y)
 {
     if ((uplo == AmpblasLower) ^ (transa != AmpblasNoTrans))
-	    _detail::trmv_l(transa, diag, a, x, y);
+	    _detail::trmv_l(av, transa, diag, a, x, y);
     else
-        _detail::trmv_u(transa, diag, a, x, y);
+        _detail::trmv_u(av, transa, diag, a, x, y);
 }
 
 template <typename value_type>
@@ -113,7 +113,7 @@ void trmv(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSPO
     concurrency::array_view<value_type,1> y_vec(workspace);
 
     // call generic implementation
-	trmv(uplo, transa, diag, a_mat, x_vec, y_vec);
+	trmv(get_current_accelerator_view(), uplo, transa, diag, a_mat, x_vec, y_vec);
    
     // copy workspace back to x
     auto x_2d = x_vec.get_base_view().view_as(concurrency::extent<2>(n,std::abs(incx))).section(concurrency::extent<2>(n,1));

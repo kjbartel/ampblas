@@ -35,13 +35,13 @@
 template <typename value_type>
 struct syr_parameters
 {
-    syr_parameters(enum AMPBLAS_UPLO uplo, int n, value_type alpha, int incx, int lda_offset)
+    syr_parameters(enum AMPBLAS_UPLO uplo, int n, typename ampblas::real_type<value_type>::type alpha, int incx, int lda_offset)
       : uplo(uplo), n(n), alpha(alpha), incx(incx), lda_offset(lda_offset)
     {}
 
     enum AMPBLAS_UPLO uplo;
     int n;
-    value_type alpha;
+    typename ampblas::real_type<value_type>::type alpha;
     int incx;
     int lda_offset;
 
@@ -49,7 +49,7 @@ struct syr_parameters
     {
         std::stringstream out;
  
-        char uplo = (this->uplo==AmpblasUpper)?'U':'L';
+        char uplo = (this->uplo==AmpblasUpper) ? 'U' : 'L';
 
         out << AMPBLAS_NAMED_TYPE(uplo)
             << AMPBLAS_NAMED_TYPE(n)
@@ -69,7 +69,7 @@ public:
 
     std::string name() const
     {
-        return "SYR";
+        return "SYR/HER";
     }
 
     void run_cblas_test(const typed_parameters& p)
@@ -88,17 +88,14 @@ public:
         // ampblas bound data
         ampblas_test_matrix<value_type> A_amp(A);
 
-		// cblas types
-		cblas::uplo uplo = (p.uplo == AmpblasUpper ? cblas::uplo::upper : cblas::uplo::lower);
-
         // test references
         start_reference_test();
-        cblas::xSYR( uplo, p.n, cblas_cast(p.alpha), cblas_cast(x.data()), x.inc(), cblas_cast(A.data()), A.ld() );
+        cblas::xSYR(cblas_cast(p.uplo), p.n, p.alpha, cblas_cast(x.data()), x.inc(), cblas_cast(A.data()), A.ld());
         stop_reference_test();
 
         // test ampblas
         start_ampblas_test();
-        ampblas_xsyr( AmpblasColMajor, p.uplo, p.n, ampcblas_cast(p.alpha), ampcblas_cast(x.data()), x.inc(), ampcblas_cast(A_amp.data()), A_amp.ld() );
+        ampblas_xsyr(AmpblasColMajor, p.uplo, p.n, p.alpha, ampcblas_cast(x.data()), x.inc(), ampcblas_cast(A_amp.data()), A_amp.ld());
         stop_ampblas_test();
 
         // calculate error
@@ -113,26 +110,32 @@ public:
         uplo.push_back(AmpblasLower);
 
         std::vector<int> n;
+        n.push_back(1);
         n.push_back(16);
-        n.push_back(64);
+        //n.push_back(64);
 
-        std::vector<value_type> alpha;
-        alpha.push_back( value_type(1) );
-        alpha.push_back( value_type(-1) );
-        alpha.push_back( value_type(0) );
+        typedef typename ampblas::real_type<value_type>::type alpha_type;
+        std::vector<alpha_type> alpha;
+        alpha.push_back( alpha_type(1) );
+        //alpha.push_back( alpha_type(-1) );
+        //alpha.push_back( alpha_type(0) );
 
         std::vector<int> incx;
         incx.push_back(1);
-        incx.push_back(-1);
-        incx.push_back(2);
+        //incx.push_back(-1);
+        //incx.push_back(2);
 
         std::vector<int> lda_offset;
         lda_offset.push_back(0);
-        lda_offset.push_back(4);
+        //lda_offset.push_back(4);
 
-        paramter_exploder( uplo, n, alpha, incx, lda_offset );
+        paramter_exploder(uplo, n, alpha, incx, lda_offset);
     }
 };
 
-REGISTER_TEST(syr_test, float);
-REGISTER_TEST(syr_test, double);
+// REGISTER_TEST(syr_test, float);
+// REGISTER_TEST(syr_test, double);
+
+// her
+REGISTER_TEST(syr_test, complex_float);
+REGISTER_TEST(syr_test, complex_double);

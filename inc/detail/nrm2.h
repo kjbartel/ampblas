@@ -60,9 +60,12 @@ struct nrm2_helper
 //-------------------------------------------------------------------------
 
 template <typename x_type>
-typename x_type::value_type nrm2(int n, const x_type& X)
+typename x_type::value_type nrm2(const concurrency::accelerator_view& av, const x_type& x)
 {
     typedef typename x_type::value_type T;
+
+    // size
+    const int n = x.extent[0];
 
     // tuning sizes
     static const unsigned int tile_size = 128;
@@ -71,7 +74,7 @@ typename x_type::value_type nrm2(int n, const x_type& X)
     auto func = _detail::nrm2_helper<T, T, x_type, _detail::sum<T>>(T(), _detail::sum<T>());
 
     // call generic 1D reduction
-    return _detail::reduce<tile_size, max_tiles, T, T>(n, X, func);
+    return _detail::reduce<tile_size, max_tiles, T, T>(av, n, x, func);
 }
 
 // Generic NRM2 algorithm for AMPBLAS arrays of type T
@@ -88,7 +91,7 @@ value_type nrm2(int n, const value_type *x, int incx)
         
     auto x_vec = make_vector_view(n, x, incx);
     
-	return nrm2(n, x_vec);
+	return nrm2(get_current_accelerator_view(), x_vec);
 }
 
 } // namespace ampblas

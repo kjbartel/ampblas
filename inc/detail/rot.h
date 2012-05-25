@@ -26,13 +26,13 @@ namespace ampblas {
 // ROT
 //-------------------------------------------------------------------------
 
-template <int rank, typename x_type, typename y_type, typename c_type, typename s_type>
-void rot(const concurrency::extent<rank>& e, x_type&& x, y_type&& y, c_type&& c, s_type&& s)
+template <typename x_type, typename y_type, typename c_type, typename s_type>
+void rot(const concurrency::accelerator_view& av, x_type&& x, y_type&& y, c_type&& c, s_type&& s)
 {
     concurrency::parallel_for_each(
-        get_current_accelerator_view(), 
-        e, 
-        [=] (concurrency::index<rank> idx) restrict(amp) 
+        av, 
+        x.extent, 
+        [=] (concurrency::index<1> idx) restrict(amp) 
         {
             auto temp = c * x[idx] + s * y[idx];
             y[idx] = c * y[idx] - s * x[idx];
@@ -57,7 +57,7 @@ void rot(int n, value_type* x, int incx, value_type* y, int incy, value_type c, 
     auto x_vec = make_vector_view(n, x, incx);
     auto y_vec = make_vector_view(n, y, incy);
 
-    rot(make_extent(n), x_vec, y_vec, c, s); 
+    rot(get_current_accelerator_view(), x_vec, y_vec, c, s); 
 }
 
 } // namespace ampblas

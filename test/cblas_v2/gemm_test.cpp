@@ -108,13 +108,9 @@ public:
         // ampblas data
         ampblas_test_matrix<value_type> C_amp(C);
 
-		// cblas types
-		cblas::transpose transa = (p.transa == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-		cblas::transpose transb = (p.transb == AmpblasNoTrans ? cblas::transpose::no_trans : cblas::transpose::trans);
-
         // test references
         start_reference_test();
-		cblas::xGEMM(transa, transb, p.m, p.n, p.k, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld(), cblas_cast(p.beta), cblas_cast(C.data()), C.ld());
+		cblas::xGEMM(cblas_cast(p.transa), cblas_cast(p.transb), p.m, p.n, p.k, cblas_cast(p.alpha), cblas_cast(A.data()), A.ld(), cblas_cast(B.data()), B.ld(), cblas_cast(p.beta), cblas_cast(C.data()), C.ld());
         stop_reference_test();
 
         // test ampblas
@@ -178,10 +174,12 @@ public:
 		std::vector<enum AMPBLAS_TRANSPOSE> transa;
 		transa.push_back(AmpblasNoTrans);
 		transa.push_back(AmpblasTrans);
+        transa.push_back(AmpblasConjTrans);
 
 		std::vector<enum AMPBLAS_TRANSPOSE> transb;
 		transb.push_back(AmpblasNoTrans);
 		transb.push_back(AmpblasTrans);
+        transb.push_back(AmpblasConjTrans);
 
 		std::vector<int> m;
         m.push_back(16);

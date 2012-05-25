@@ -32,18 +32,18 @@ namespace ampblas {
 //  vector and A is an M by N matrix.
 //-------------------------------------------------------------------------
 
-template <typename alpha_type, typename x_vector_type, typename y_vector_type, typename a_value_type>
-void ger(alpha_type alpha, const x_vector_type& x, const y_vector_type& y, const concurrency::array_view<a_value_type,2>& a )
+template <typename trans_op, typename alpha_type, typename x_vector_type, typename y_vector_type, typename a_value_type>
+void ger(const concurrency::accelerator_view& av, alpha_type alpha, const x_vector_type& x, const y_vector_type& y, const concurrency::array_view<a_value_type,2>& a )
 {
     concurrency::parallel_for_each ( 
-        get_current_accelerator_view(), 
+        av,
         a.extent,
         [=] (concurrency::index<2> idx_a) restrict(amp)
         {
             concurrency::index<1> idx_x(idx_a[1]);
             concurrency::index<1> idx_y(idx_a[0]);
 
-            a[idx_a] += alpha * x[idx_x] * y[idx_y] ;
+            a[idx_a] += alpha * x[idx_x] * trans_op::op(y[idx_y]);
         }
     );
 }
@@ -82,7 +82,7 @@ void ger(enum AMPBLAS_ORDER order, int m, int n, value_type alpha, const value_t
     auto a_mat = make_matrix_view(m, n, a, lda);
 
     // call generic implementation
-    ger(alpha, x_vec, y_vec, a_mat);
+    ger<trans_op>(get_current_accelerator_view(), alpha, x_vec, y_vec, a_mat);
 }
 
 } // namespace ampblas

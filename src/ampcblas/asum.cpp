@@ -27,7 +27,7 @@ extern "C" {
 float ampblas_sasum(const int N, const float *X, const int incX)
 {
     float ret = 0;
-    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N,X,incX) );
+    AMPBLAS_CHECKED_CALL( ret = ampblas::asum(N, X, incX) );
     return ret;
 }
 

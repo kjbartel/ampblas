@@ -70,7 +70,7 @@ namespace cblas {
 
 	public:
 
-		Option( enum class side side )
+		Option(const enum class side& side)
 		{
 			switch (side)
 			{
@@ -83,7 +83,7 @@ namespace cblas {
 			}
 		}
 
-		Option( enum class uplo uplo )
+		Option(const enum class uplo& uplo)
 		{
 			switch (uplo)
 			{
@@ -96,7 +96,7 @@ namespace cblas {
 			}
 		}
 
-		Option( enum class transpose trans )
+		Option(const enum class transpose& trans)
 		{
 			switch (trans)
 			{
@@ -112,7 +112,7 @@ namespace cblas {
 			}
 		}
 
-		Option( enum class diag diag)
+		Option(const enum class diag& diag)
 		{
 			switch (diag)
 			{
@@ -125,7 +125,10 @@ namespace cblas {
 			}
 		}
 
-		inline operator char*() { return &option_; }
+		inline operator char*() 
+        { 
+            return &option_; 
+        }
 	};
 
     // ------------------------------------------------------------------------
@@ -157,9 +160,15 @@ namespace cblas {
     void ZCOPY( int N, complex_double* X, int INCX, complex_double* Y, int INCY ) { f2c_cblas::zcopy_( Integer(N), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY) ); }
 
     // DOT
-    double  DDOT( int N, const double* X, int INCX, const double* Y, int INCY ) { return   f2c_cblas::ddot_( Integer(N), DoubleReal(X), Integer(INCX), DoubleReal(Y), Integer(INCY) ); }
-    double DSDOT( int N, const float*  X, int INCX, const float*  Y, int INCY ) { return  f2c_cblas::dsdot_( Integer(N), Real(X),       Integer(INCX), Real(Y),       Integer(INCY) ); }
-    float   SDOT( int N, const float*  X, int INCX, const float*  Y, int INCY ) { return   f2c_cblas::sdot_( Integer(N), Real(X),       Integer(INCX), Real(Y),       Integer(INCY) ); }
+    double         DDOT( int N, const double*         X, int INCX, const double*         Y, int INCY ) { return   f2c_cblas::ddot_( Integer(N), DoubleReal(X),    Integer(INCX), DoubleReal(Y),    Integer(INCY) ); }
+    double        DSDOT( int N, const float*          X, int INCX, const float*          Y, int INCY ) { return  f2c_cblas::dsdot_( Integer(N), Real(X),          Integer(INCX), Real(Y),          Integer(INCY) ); }
+    float          SDOT( int N, const float*          X, int INCX, const float*          Y, int INCY ) { return   f2c_cblas::sdot_( Integer(N), Real(X),          Integer(INCX), Real(Y),          Integer(INCY) ); }
+    
+    // Complex DOT
+    complex_float  CDOTU( int N, const complex_float*  X, int INCX, const complex_float*  Y, int INCY ) { complex_float ret;  f2c_cblas::cdotu_( Complex(ret),       Integer(N), Complex(X),       Integer(INCX), Complex(Y),       Integer(INCY) ); return ret; }
+    complex_float  CDOTC( int N, const complex_float*  X, int INCX, const complex_float*  Y, int INCY ) { complex_float ret;  f2c_cblas::cdotc_( Complex(ret),       Integer(N), Complex(X),       Integer(INCX), Complex(Y),       Integer(INCY) ); return ret; }
+    complex_double ZDOTU( int N, const complex_double* X, int INCX, const complex_double* Y, int INCY ) { complex_double ret; f2c_cblas::zdotu_( DoubleComplex(ret), Integer(N), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY) ); return ret; }
+    complex_double ZDOTC( int N, const complex_double* X, int INCX, const complex_double* Y, int INCY ) { complex_double ret; f2c_cblas::zdotc_( DoubleComplex(ret), Integer(N), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY) ); return ret; }
 
     // NRM2
     float   SNRM2( int N, const float*          X, int INCX ) { return f2c_cblas::snrm2_ ( Integer(N), Real(X),          Integer(INCX) ); }
@@ -190,10 +199,12 @@ namespace cblas {
 	// ------------------------------------------------------------------------
 
 	// GER
-    void SGER( int M, int N, float          ALPHA, const float*          X, int INCX, const float*          Y, int INCY, float*          A, int LDA ) { f2c_cblas::sger_ ( Integer(M), Integer(N), Real(ALPHA),          Real(X),          Integer(INCX), Real(Y),          Integer(INCY), Real(A),          Integer(LDA) ); }
-    void DGER( int M, int N, double         ALPHA, const double*         X, int INCX, const double*         Y, int INCY, double*         A, int LDA ) { f2c_cblas::dger_ ( Integer(M), Integer(N), DoubleReal(ALPHA),    DoubleReal(X),    Integer(INCX), DoubleReal(Y),    Integer(INCY), DoubleReal(A),    Integer(LDA) ); }
-    void CGER( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA ) { f2c_cblas::cgeru_( Integer(M), Integer(N), Complex(ALPHA),       Complex(X),       Integer(INCX), Complex(Y),       Integer(INCY), Complex(A),       Integer(LDA) ); }
-    void ZGER( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA ) { f2c_cblas::zgeru_( Integer(M), Integer(N), DoubleComplex(ALPHA), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY), DoubleComplex(A), Integer(LDA) ); }
+    void SGER ( int M, int N, float          ALPHA, const float*          X, int INCX, const float*          Y, int INCY, float*          A, int LDA ) { f2c_cblas::sger_ ( Integer(M), Integer(N), Real(ALPHA),          Real(X),          Integer(INCX), Real(Y),          Integer(INCY), Real(A),          Integer(LDA) ); }
+    void DGER ( int M, int N, double         ALPHA, const double*         X, int INCX, const double*         Y, int INCY, double*         A, int LDA ) { f2c_cblas::dger_ ( Integer(M), Integer(N), DoubleReal(ALPHA),    DoubleReal(X),    Integer(INCX), DoubleReal(Y),    Integer(INCY), DoubleReal(A),    Integer(LDA) ); }
+    void CGERU( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA ) { f2c_cblas::cgeru_( Integer(M), Integer(N), Complex(ALPHA),       Complex(X),       Integer(INCX), Complex(Y),       Integer(INCY), Complex(A),       Integer(LDA) ); }
+    void CGERC( int M, int N, complex_float  ALPHA, const complex_float*  X, int INCX, const complex_float*  Y, int INCY, complex_float*  A, int LDA ) { f2c_cblas::cgerc_( Integer(M), Integer(N), Complex(ALPHA),       Complex(X),       Integer(INCX), Complex(Y),       Integer(INCY), Complex(A),       Integer(LDA) ); }
+    void ZGERU( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA ) { f2c_cblas::zgeru_( Integer(M), Integer(N), DoubleComplex(ALPHA), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY), DoubleComplex(A), Integer(LDA) ); }
+    void ZGERC( int M, int N, complex_double ALPHA, const complex_double* X, int INCX, const complex_double* Y, int INCY, complex_double* A, int LDA ) { f2c_cblas::zgerc_( Integer(M), Integer(N), DoubleComplex(ALPHA), DoubleComplex(X), Integer(INCX), DoubleComplex(Y), Integer(INCY), DoubleComplex(A), Integer(LDA) ); }
 
 	// GEMV
 	void SGEMV( enum class transpose TRANSA, int M, int N, float          ALPHA, const float*          A, int LDA, const float*          X, int INCX, float          BETA, float*          Y, int INCY ) { f2c_cblas::sgemv_( Option(TRANSA), Integer(M), Integer(N), Real(ALPHA),          Real(A),          Integer(LDA), Real(X),          Integer(INCX), Real(BETA),          Real(Y),          Integer(INCY) ); }
@@ -201,13 +212,17 @@ namespace cblas {
     void CGEMV( enum class transpose TRANSA, int M, int N, complex_float  ALPHA, const complex_float*  A, int LDA, const complex_float*  X, int INCX, complex_float  BETA, complex_float*  Y, int INCY ) { f2c_cblas::cgemv_( Option(TRANSA), Integer(M), Integer(N), Complex(ALPHA),       Complex(A),       Integer(LDA), Complex(X),       Integer(INCX), Complex(BETA),       Complex(Y),       Integer(INCY) ); }
     void ZGEMV( enum class transpose TRANSA, int M, int N, complex_double ALPHA, const complex_double* A, int LDA, const complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY ) { f2c_cblas::zgemv_( Option(TRANSA), Integer(M), Integer(N), DoubleComplex(ALPHA), DoubleComplex(A), Integer(LDA), DoubleComplex(X), Integer(INCX), DoubleComplex(BETA), DoubleComplex(Y), Integer(INCY) ); }
 
-    // SYR
-    void SSYR( enum class uplo UPLO, int N, float  ALPHA, const float*  X, int INCX, float*  A, int LDA) { f2c_cblas::ssyr_( Option(UPLO), Integer(N), Real(ALPHA),       Real(X),       Integer(INCX), Real(A),       Integer(LDA) ); }
-    void DSYR( enum class uplo UPLO, int N, double ALPHA, const double* X, int INCX, double* A, int LDA) { f2c_cblas::dsyr_( Option(UPLO), Integer(N), DoubleReal(ALPHA), DoubleReal(X), Integer(INCX), DoubleReal(A), Integer(LDA) ); }
+    // SYR                                                                                                   
+    void SSYR( enum class uplo UPLO, int N, float  ALPHA, const float*          X, int INCX, float*          A, int LDA) { f2c_cblas::ssyr_( Option(UPLO), Integer(N), Real(ALPHA),       Real(X),          Integer(INCX), Real(A),          Integer(LDA) ); }
+    void DSYR( enum class uplo UPLO, int N, double ALPHA, const double*         X, int INCX, double*         A, int LDA) { f2c_cblas::dsyr_( Option(UPLO), Integer(N), DoubleReal(ALPHA), DoubleReal(X),    Integer(INCX), DoubleReal(A),    Integer(LDA) ); }
+    void CHER( enum class uplo UPLO, int N, float  ALPHA, const complex_float*  X, int INCX, complex_float*  A, int LDA) { f2c_cblas::cher_( Option(UPLO), Integer(N), Real(ALPHA),       Complex(X),       Integer(INCX), Complex(A),       Integer(LDA) ); }
+    void ZHER( enum class uplo UPLO, int N, double ALPHA, const complex_double* X, int INCX, complex_double* A, int LDA) { f2c_cblas::zher_( Option(UPLO), Integer(N), DoubleReal(ALPHA), DoubleComplex(X), Integer(INCX), DoubleComplex(A), Integer(LDA) ); }
 
     // SYMV
-    void SSYMV( enum class uplo UPLO, int N, float  ALPHA, float*  A, int LDA, float*  X, int INCX, float  BETA, float*  Y, int INCY) { f2c_cblas::ssymv_( Option(UPLO), Integer(N), Real(ALPHA),       Real(A),       Integer(LDA), Real(X),       Integer(INCX), Real(BETA),       Real(Y),       Integer(INCY)); }
-    void DSYMV( enum class uplo UPLO, int N, double ALPHA, double* A, int LDA, double* X, int INCX, double BETA, double* Y, int INCY) { f2c_cblas::dsymv_( Option(UPLO), Integer(N), DoubleReal(ALPHA), DoubleReal(A), Integer(LDA), DoubleReal(X), Integer(INCX), DoubleReal(BETA), DoubleReal(Y), Integer(INCY)); }
+    void SSYMV( enum class uplo UPLO, int N, float          ALPHA, float*          A, int LDA, float*          X, int INCX, float          BETA, float*          Y, int INCY) { f2c_cblas::ssymv_( Option(UPLO), Integer(N), Real(ALPHA),          Real(A),          Integer(LDA), Real(X),          Integer(INCX), Real(BETA),          Real(Y),          Integer(INCY)); }
+    void DSYMV( enum class uplo UPLO, int N, double         ALPHA, double*         A, int LDA, double*         X, int INCX, double         BETA, double*         Y, int INCY) { f2c_cblas::dsymv_( Option(UPLO), Integer(N), DoubleReal(ALPHA),    DoubleReal(A),    Integer(LDA), DoubleReal(X),    Integer(INCX), DoubleReal(BETA),    DoubleReal(Y),    Integer(INCY)); }
+    void CHEMV( enum class uplo UPLO, int N, complex_float  ALPHA, complex_float*  A, int LDA, complex_float*  X, int INCX, complex_float  BETA, complex_float*  Y, int INCY) { f2c_cblas::chemv_( Option(UPLO), Integer(N), Complex(ALPHA),       Complex(A),       Integer(LDA), Complex(X),       Integer(INCX), Complex(BETA),       Complex(Y),       Integer(INCY)); }
+    void ZHEMV( enum class uplo UPLO, int N, complex_double ALPHA, complex_double* A, int LDA, complex_double* X, int INCX, complex_double BETA, complex_double* Y, int INCY) { f2c_cblas::zhemv_( Option(UPLO), Integer(N), DoubleComplex(ALPHA), DoubleComplex(A), Integer(LDA), DoubleComplex(X), Integer(INCX), DoubleComplex(BETA), DoubleComplex(Y), Integer(INCY)); }
 	
     // TRMV
     void STRMV( enum class uplo UPLO, enum class transpose TRANS, enum class diag DIAG, int N, float*           A, int LDA, float*           X, int INCX) { f2c_cblas::strmv_( Option(UPLO), Option(TRANS), Option(DIAG), Integer(N), Real(A),          Integer(LDA), Real(X),          Integer(INCX) ); }
@@ -248,8 +263,10 @@ namespace cblas {
 	void DSYMM( enum class side SIDE, enum class uplo UPLO, int M, int N, double ALPHA, double* A, int LDA, double* B, int LDB, double BETA, double* C, int LDC) { f2c_cblas::dsymm_( Option(SIDE), Option(UPLO), Integer(M), Integer(N), DoubleReal(ALPHA), DoubleReal(A), Integer(LDA), DoubleReal(B), Integer(LDB), DoubleReal(BETA), DoubleReal(C), Integer(LDC)); }
 
 	// SYRK
-	void SSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float  BETA, float*  C, int LDC) { f2c_cblas::ssyrk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), Real(ALPHA),       Real(A),       Integer(LDA), Real(BETA),       Real(C),       Integer(LDC)); }
-	void DSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double* A, int LDA, double BETA, double* C, int LDC) { f2c_cblas::dsyrk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), DoubleReal(ALPHA), DoubleReal(A), Integer(LDA), DoubleReal(BETA), DoubleReal(C), Integer(LDC)); }
+	void SSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*          A, int LDA, float  BETA, float*          C, int LDC) { f2c_cblas::ssyrk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), Real(ALPHA),       Real(A),          Integer(LDA), Real(BETA),       Real(C),          Integer(LDC)); }
+	void DSYRK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, double*         A, int LDA, double BETA, double*         C, int LDC) { f2c_cblas::dsyrk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), DoubleReal(ALPHA), DoubleReal(A),    Integer(LDA), DoubleReal(BETA), DoubleReal(C),    Integer(LDC)); }
+    void CHERK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, complex_float*  A, int LDA, float  BETA, complex_float*  C, int LDC) { f2c_cblas::cherk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), Real(ALPHA),       Complex(A),       Integer(LDA), Real(BETA),       Complex(C),       Integer(LDC)); }
+    void ZHERK( enum class uplo UPLO, enum class transpose TRANS, int N, int K, double ALPHA, complex_double* A, int LDA, double BETA, complex_double* C, int LDC) { f2c_cblas::zherk_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), DoubleReal(ALPHA), DoubleComplex(A), Integer(LDA), DoubleReal(BETA), DoubleComplex(C), Integer(LDC)); }
 
 	// SYR2K
 	void SSYR2K( enum class uplo UPLO, enum class transpose TRANS, int N, int K, float  ALPHA, float*  A, int LDA, float*  B, int LDB, float  BETA, float*  C, int LDC) { f2c_cblas::ssyr2k_( Option(UPLO), Option(TRANS), Integer(N), Integer(K), Real(ALPHA),       Real(A),       Integer(LDA), Real(B),       Integer(LDB), Real(BETA),       Real(C),       Integer(LDC)); }

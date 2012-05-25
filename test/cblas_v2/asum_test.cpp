@@ -113,13 +113,6 @@ public:
     }
 };
 
-template <>
-bool asum_test<complex_double>::requires_full_double() const
-{
-    // uses precise sqrt for complex abs
-    return true;
-}
-
 REGISTER_TEST(asum_test, float);
 REGISTER_TEST(asum_test, double);
 REGISTER_TEST(asum_test, complex_float);

@@ -59,9 +59,9 @@ namespace _detail
 
 // Generic fill algorithm on any multi-dimensional container
 template <int rank, typename value_type, typename x_type>
-void fill(const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
+void fill(const concurrency::accelerator_view& av, const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
+    concurrency::parallel_for_each(av, e, [=] (concurrency::index<rank> idx) restrict(amp) 
     {
         x[idx] = value;
     });
@@ -69,12 +69,12 @@ void fill(const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
 
 // Triangular fill for rank-2 containers
 template <typename value_type>
-void fill_triangle(enum AMPBLAS_UPLO uplo, const value_type& value, const concurrency::array_view<value_type,2>& x)
+void fill(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, const value_type& value, const concurrency::array_view<value_type,2>& x)
 {
     assert(x.extent[0]==x.extent[1]); // triangular matrices are also square
 
-    if ( uplo == AmpblasUpper )
-        concurrency::parallel_for_each(get_current_accelerator_view(), x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
+    if (uplo == AmpblasUpper)
+        concurrency::parallel_for_each(av, x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
         {
             auto i = idx[1];
             auto j = idx[0];
@@ -82,7 +82,7 @@ void fill_triangle(enum AMPBLAS_UPLO uplo, const value_type& value, const concur
                 x[idx] = value;
         });
     else
-        concurrency::parallel_for_each(get_current_accelerator_view(), x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
+        concurrency::parallel_for_each(av, x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
         {
             auto i = idx[1];
             auto j = idx[0];
@@ -93,32 +93,40 @@ void fill_triangle(enum AMPBLAS_UPLO uplo, const value_type& value, const concur
 
 // Generic scale algorithm on any multi-dimensional container
 template <int rank, typename value_type, typename x_type>
-void scale(const concurrency::extent<rank>& e, value_type&& value, x_type&& x)
+void scale(const concurrency::accelerator_view& av, const concurrency::extent<rank>& e, const value_type& value, x_type&& x)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        x[idx] *= value;
-    });
+    concurrency::parallel_for_each(
+        av,
+        e, 
+        [=] (concurrency::index<rank> idx) restrict(amp) 
+        {
+            x[idx] *= value;
+        }
+    );
 }
 
 // Generic swap algorithm on any multi-dimensional container
 template <int rank, typename x_type, typename y_type>
-void swap(const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
+void swap(const concurrency::accelerator_view& av, const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        auto tmp = y[idx];
-        y[idx] = x[idx];
-        x[idx] = tmp;
-    });
+    concurrency::parallel_for_each(
+        av, 
+        e, 
+        [=] (concurrency::index<rank> idx) restrict(amp) 
+        {
+            auto tmp = y[idx];
+            y[idx] = x[idx];
+            x[idx] = tmp;
+        }
+    );
 }
 
 // Triangular fill for rank-2 containers
-template <typename value_type>
-void scale(enum AMPBLAS_UPLO uplo, const value_type& value, const concurrency::array_view<value_type,2>& x)
+template <typename scalar_type, typename value_type>
+void scale(const concurrency::accelerator_view& av, enum AMPBLAS_UPLO uplo, const scalar_type& value, const concurrency::array_view<value_type,2>& x)
 {
     if ( uplo == AmpblasUpper )
-        concurrency::parallel_for_each(get_current_accelerator_view(), x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
+        concurrency::parallel_for_each(av, x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
         {
             auto i = idx[1];
             auto j = idx[0];
@@ -126,7 +134,7 @@ void scale(enum AMPBLAS_UPLO uplo, const value_type& value, const concurrency::a
                 x[idx] = value*x[idx];
         });
     else
-        concurrency::parallel_for_each(get_current_accelerator_view(), x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
+        concurrency::parallel_for_each(av, x.extent, [=] (concurrency::index<2> idx) restrict(amp) 
         {
             auto i = idx[1];
             auto j = idx[0];
@@ -135,20 +143,35 @@ void scale(enum AMPBLAS_UPLO uplo, const value_type& value, const concurrency::a
         });
 }
 
-// Generic copy algorithm on any multi-dimensional container
+// eneric copy algorithm on any multi-dimensional container
 template <int rank, typename x_type, typename y_type>
-void copy(const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
+void copy(const concurrency::accelerator_view& av, const concurrency::extent<rank>& e, x_type&& x, y_type&& y)
 {
-    concurrency::parallel_for_each(get_current_accelerator_view(), e, [=] (concurrency::index<rank> idx) restrict(amp) 
-    {
-        y[idx] = x[idx];
-    });
+    concurrency::parallel_for_each(av, e, 
+        [=] (concurrency::index<rank> idx) restrict(amp) 
+        {
+            y[idx] = x[idx];
+        }
+    );
 }
 
 template <typename T>
 inline T abs(const T& val) restrict(cpu, amp)
 {
     return val >= 0 ? val: -val;
+}
+
+// some routines use this form of abs() for complex values
+template <typename value_type>
+inline value_type abs_1(const value_type& val) restrict(cpu, amp)
+{
+    return abs(val);
+}
+
+template <typename value_type>
+inline value_type abs_1(const complex<value_type>& val) restrict(cpu, amp)
+{
+    return abs(val.real()) + abs(val.imag());
 }
 
 template<typename T>
@@ -205,10 +228,44 @@ struct subtract
     }
 };
 
+
 struct noop
 {
-    void operator()() const restrict (cpu, amp) {}
+    template <typename value_type>
+    static inline const value_type op(const value_type& val) restrict (cpu, amp)
+    {
+        return val;
+    }
 };
+
+struct conjugate
+{
+    template <typename value_type>
+    static inline const value_type op(const value_type& val) restrict (cpu, amp)
+    {
+        // noop for real types
+        return val;
+    }
+
+    template <typename value_type>
+    static inline const complex<value_type> op(const complex<value_type>& val) restrict (cpu, amp)
+    {
+        complex<value_type> ret(val.real(), -val.imag());
+        return ret;
+    }
+};
+
+template <typename value_type>
+inline void only_real(const value_type&) restrict(cpu, amp)
+{
+    // noop for real
+}
+
+template <typename value_type>
+inline void only_real(complex<value_type>& val) restrict(cpu, amp)
+{
+    val.imag(value_type());
+}
 
 //
 // bounds checked opeators
@@ -238,6 +295,12 @@ inline bool is_diag(const concurrency::index<2>& idx) restrict(cpu,amp)
     return idx[0] == idx[1];
 }
 
+template <typename x_type, typename y_type>
+void require_matched_extent(const x_type& /*x*/, const y_type& /*y*/)
+{
+    // TODO: what should this actually do if not matched?
+}
+
 template <typename T, unsigned int tile_size, typename functor>
 void tile_local_reduction(T* const mem, concurrency::tiled_index<tile_size> tid, const functor& op) restrict(amp)
 {
@@ -259,7 +322,7 @@ void tile_local_reduction(T* const mem, concurrency::tiled_index<tile_size> tid,
 
 // Generic reduction of an 1D container with the reduction operation specified by a helper functor
 template <unsigned int tile_size, unsigned int max_tiles, typename ret_type, typename elm_type, typename x_type, typename functor>
-ret_type reduce(int n, const x_type& X, const functor& reduce_helper)
+ret_type reduce(const concurrency::accelerator_view& av, int n, const x_type& X, const functor& reduce_helper)
 {
     // runtime sizes
     unsigned int tile_count = (n+tile_size-1) / tile_size;
@@ -275,8 +338,8 @@ ret_type reduce(int n, const x_type& X, const functor& reduce_helper)
     // configuration
     concurrency::extent<1> extent(thread_count);
 
-    concurrency::parallel_for_each (
-        get_current_accelerator_view(), 
+    concurrency::parallel_for_each(
+        av,
         extent.tile<tile_size>(),
         [=] (concurrency::tiled_index<tile_size> tid) restrict(amp)
     {
