@@ -393,6 +393,20 @@ struct real_type<complex<T>>
     typedef typename T type;
 };
 
+// real part extraction from reals types (essentially a noop)
+template <typename T>
+inline T real(const T& val)
+{
+    return val;
+}
+
+// real part extraction from complex types
+template <typename T>
+inline T real(const complex<T>& val)
+{
+    return val.real();
+}
+
 } // ampblas
 
 #endif // __cplusplus
