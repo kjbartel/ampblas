@@ -118,6 +118,9 @@ public:
 		ampblas_xtrsm(AmpblasColMajor, p.side, p.uplo, p.transa, p.diag, p.m, p.n, ampcblas_cast(p.alpha), ampcblas_cast(A.data()), A.ld(), ampcblas_cast(B_amp.data()), B_amp.ld());
         stop_ampblas_test();
 
+        // synchronize outputs
+        B_amp.synchronize();
+
         // calculate error
         check_error(B, B_amp);
     }

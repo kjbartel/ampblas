@@ -46,6 +46,7 @@ bool test_swap_1()
 
     // Run test
     EXECUTE_KERNEL_IF_OK(re, ampblas_xswap(n, x, 1, y, 1));
+    EXECUTE_IF_OK(re, ampblas_synchronize(x, n * sizeof(T)));
 	EXECUTE_IF_OK(re, ampblas_synchronize(y, n * sizeof(T)));
 
     // Unbind buffers

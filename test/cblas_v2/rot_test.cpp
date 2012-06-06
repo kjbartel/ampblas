@@ -92,6 +92,10 @@ public:
         ampblas_xrot(p.n, x_amp.data(), x.inc(), y_amp.data(), y_amp.inc(), c, s);
         stop_ampblas_test();
 
+        // synchronize outputs
+        y_amp.synchronize();
+        x_amp.synchronize();
+
         // calculate errors
         check_error(x, x_amp);
         check_error(y, y_amp);

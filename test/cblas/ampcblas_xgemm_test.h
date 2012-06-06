@@ -130,6 +130,7 @@ bool test_gemm_2(compare_func compare_equal)
 	ampblas_unbind(b);
 	ampblas_unbind(c);
 
+
     // Verify result
     if (re != AMPBLAS_OK)
     {
@@ -148,6 +149,8 @@ bool test_gemm_2(compare_func compare_equal)
             }
         }
 	}
+
+
 
     return true;
 }

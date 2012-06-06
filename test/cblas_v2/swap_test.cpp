@@ -96,6 +96,10 @@ public:
         ampblas_xswap( p.n, ampcblas_cast(x_amp.data()), x_amp.inc(), ampcblas_cast(y_amp.data()), y_amp.inc() );
         stop_ampblas_test();
 
+        // synchronize outputs
+        y_amp.synchronize();
+        x_amp.synchronize();
+
         // calculate error
         check_error(y, y_amp);
     }

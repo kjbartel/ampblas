@@ -97,6 +97,9 @@ public:
 		ampblas_xtrmv(AmpblasColMajor, p.uplo, p.trans, p.diag, p.n, ampcblas_cast(A.data()), A.ld(), ampcblas_cast(x_amp.data()), x_amp.inc());
         stop_ampblas_test();
 
+        // synchronize outputs
+        x_amp.synchronize();
+
         // calculate error
         check_error(x, x_amp);
     }

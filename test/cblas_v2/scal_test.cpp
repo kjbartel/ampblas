@@ -87,6 +87,9 @@ public:
         ampblas_xscal(p.n, ampcblas_cast(p.alpha), ampcblas_cast(x_amp.data()), x_amp.inc());
         stop_ampblas_test();
 
+        // synchronize outputs
+        x_amp.synchronize();
+
         // calculate error
         check_error(x, x_amp);
     }

@@ -94,6 +94,9 @@ public:
         ampblas_xcopy( p.n, ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y_amp.data()), y_amp.inc() );
         stop_ampblas_test();
 
+        // synchronize outputs
+        y_amp.synchronize();
+
         // calculate error
         check_error(y, y_amp);
     }

@@ -411,23 +411,39 @@ class ampblas_test_vector : public test_vector<value_type>
 {
 public:
     ampblas_test_vector(int n, int inc = 1)
-        : test_vector<value_type>(n, inc)
+        : test_vector<value_type>(n, inc), is_bound(false)
     {
         err = ampblas_bind(test_vector<value_type>::data(), test_vector<value_type>::size());
+        is_bound = true;
     }
 
     ampblas_test_vector(const test_vector<value_type>& rhs)
-        : test_vector<value_type>(rhs)
+        : test_vector<value_type>(rhs), is_bound(false)
     {
         err = ampblas_bind(test_vector<value_type>::data(), test_vector<value_type>::size());
+        is_bound = true;
+    }
+
+    void unbind()
+    {
+        if (is_bound)
+            ampblas_unbind(test_vector<value_type>::data());
+    }
+
+    void synchronize()
+    {
+        if (is_bound)
+            ampblas_synchronize(test_vector<value_type>::data(), test_vector<value_type>::size());
     }
 
     ~ampblas_test_vector()
     {
-        ampblas_unbind(test_vector<value_type>::data());
+        if (is_bound)
+            unbind();            
     }
 
 private:
+    bool is_bound;
     ampblas_error_checker err;
 };
 
@@ -514,23 +530,39 @@ class ampblas_test_matrix : public test_matrix<value_type>
 public:
 
     ampblas_test_matrix(int m, int n, int ld = 0)
-        : test_matrix<value_type>(m, n, ld)
+        : test_matrix<value_type>(m, n, ld), is_bound(false)
     {
         err = ampblas_bind(test_matrix<value_type>::data(), test_matrix<value_type>::size());
+        is_bound = true;
     }
 
     ampblas_test_matrix(const test_matrix<value_type>& rhs)
-        : test_matrix<value_type>(rhs)
+        : test_matrix<value_type>(rhs), is_bound(false)
     {
         err = ampblas_bind(test_matrix<value_type>::data(), test_matrix<value_type>::size());
+        is_bound = true;
+    }
+
+    void synchronize()
+    {
+        if (is_bound)
+            ampblas_synchronize(test_matrix<value_type>::data(), test_matrix<value_type>::size());
+    }
+
+    void unbind()
+    {
+        ampblas_unbind(test_matrix<value_type>::data());
+        is_bound = false;
     }
 
     ~ampblas_test_matrix()
     {
-        ampblas_unbind(test_matrix<value_type>::data());
+        if (is_bound)
+            unbind();
     }
 
 private:
+    bool is_bound;
     ampblas_error_checker err;
 };
 

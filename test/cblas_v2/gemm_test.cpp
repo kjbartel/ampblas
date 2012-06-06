@@ -103,7 +103,7 @@ public:
         // generate data
         randomize(A);
         randomize(B);
-		randomize(C);
+		// randomize(C);
 
         // ampblas data
         ampblas_test_matrix<value_type> C_amp(C);
@@ -117,6 +117,9 @@ public:
         start_ampblas_test();
 		ampblas_xgemm(AmpblasColMajor, p.transa, p.transb, p.m, p.n, p.k, ampcblas_cast(p.alpha), ampcblas_cast(A.data()), A.ld(), ampcblas_cast(B.data()), B.ld(), ampcblas_cast(p.beta), ampcblas_cast(C_amp.data()), C_amp.ld());
         stop_ampblas_test();
+
+        // synchronize outputs
+        C_amp.synchronize();
 
         // calculate error
         check_error(C, C_amp);
@@ -144,12 +147,25 @@ public:
         // generate data
         randomize(A);
         randomize(B);
-		randomize(C);
+		// randomize(C);
 
-        // explicitly copy to device
-        concurrency::array<value_type,2> A_a( A.m(), A.n(), A.data() );
-        concurrency::array<value_type,2> B_a( B.m(), B.n(), B.data() );
-        concurrency::array<value_type,2> C_a( C.m(), C.n(), C.data() );
+        // set current AV
+        concurrency::accelerator_view av(concurrency::accelerator().default_view);
+
+        // TEMP DATA
+        std::vector<value_type> A_TEMP( p.m*p.k, value_type(1) );
+        std::vector<value_type> B_TEMP( p.k*p.n, value_type(2) );
+        std::vector<value_type> C_TEMP( p.m*p.n, value_type(0) );
+
+                // TEMP!
+        concurrency::array_view<value_type,2> host_view_a(p.k, p.m, A_TEMP.data());
+        concurrency::array_view<value_type,2> host_view_b(p.n, p.k, B_TEMP.data());
+        concurrency::array_view<value_type,2> host_view_c(p.n, p.m, C_TEMP.data());
+
+    // explicitly copy to device
+        concurrency::array<value_type,2> A_a( host_view_a );
+        concurrency::array<value_type,2> B_a( host_view_b );
+        concurrency::array<value_type,2> C_a( host_view_c );
 
         // make views
         concurrency::array_view<const value_type, 2> A_av(A_a);
@@ -158,14 +174,16 @@ public:
 
         // run routine
         start_ampblas_test();
-        ampblas::gemm( p.transa, p.transb, p.alpha, A_av, B_av, p.beta, C_av );
+        ampblas::gemm( av, p.transa, p.transb, p.alpha, A_av, B_av, p.beta, C_av );
         stop_ampblas_test();
+
+        // copy back
+        concurrency::copy( C_TEMP.begin(), C_TEMP.end(), C_av );
 
         double gflops = flops(p) / double(1e9);
 
-        std::cout << p.name() << std::endl;
-        std::cout << gflops / reference_time() << std::endl;
-        std::cout << gflops / ampblas_time()  << std::endl; 
+        std::cout << "Host: " << gflops / reference_time() << std::endl;
+        std::cout << "Amp : " << gflops / ampblas_time()  << std::endl; 
     }
 
     gemm_test()
@@ -216,7 +234,7 @@ public:
 		
 		std::vector<int> ldc_offset;
 		ldc_offset.push_back(0);
-		ldc_offset.push_back(4);
+		//ldc_offset.push_back(4);
 
         paramter_exploder(transa,transb,m,n,k,alpha,beta,lda_offset,ldb_offset,ldc_offset);
     }

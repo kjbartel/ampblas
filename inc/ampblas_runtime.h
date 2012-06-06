@@ -264,20 +264,20 @@ private:
 };
 
 template <typename base_view_type>
-inline stride_view<base_view_type> make_stride_view(const base_view_type& bv, int stride, const concurrency::extent<base_view_type::rank>& logical_extent) restrict(cpu, amp)
+inline stride_view<base_view_type> make_stride_view(const base_view_type& bv, int stride, const concurrency::extent<base_view_type::rank>& logical_extent)
 {
 	return stride_view<base_view_type>(bv, stride, logical_extent);
 }
 
 template <typename value_type>
-inline stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, value_type *X, int incX) restrict(cpu, amp)
+inline stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, value_type *X, int incX)
 {
     auto avX = get_array_view(X, N*std::abs(incX));
     return make_stride_view(avX, incX, make_extent(N));
 }
 
 template <typename value_type>
-inline const stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, const value_type *X, int incX) restrict(cpu, amp)
+inline const stride_view<concurrency::array_view<value_type,1>> make_vector_view(int N, const value_type *X, int incX)
 {
     auto avX = get_array_view(X, N*std::abs(incX));
     return make_stride_view(avX, incX, make_extent(N));

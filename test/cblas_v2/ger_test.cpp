@@ -100,6 +100,9 @@ public:
         ampblas_xger(AmpblasColMajor, p.m, p.n, ampcblas_cast(p.alpha), ampcblas_cast(x.data()), x.inc(), ampcblas_cast(y.data()), y.inc(), ampcblas_cast(A_amp.data()), A_amp.ld());
         stop_ampblas_test();
 
+        // synchronize outputs
+        A_amp.synchronize();
+
         // calculate error
         check_error(A, A_amp);
     }

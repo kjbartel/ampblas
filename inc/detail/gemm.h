@@ -58,7 +58,7 @@ void gemm(const concurrency::accelerator_view& av, value_type alpha, const concu
         const int i = tid.tile_origin[1];
 
         value_type sum = value_type(); 
-        
+
         // k loop
         for (int k=0; k<k_max; k+=tile_size)
         {
@@ -66,14 +66,14 @@ void gemm(const concurrency::accelerator_view& av, value_type alpha, const concu
             auto b_idx = (transb == AmpblasNoTrans ? concurrency::index<2>(j+row, k+col) : concurrency::index<2>(k+row, j+col));
             
             // load a & b
-            a_local = _detail::guarded_read<guarded>(a, a_idx);
-            b_local = _detail::guarded_read<guarded>(b, b_idx);
+            a_local = guarded_read<guarded>(a, a_idx);
+            b_local = guarded_read<guarded>(b, b_idx);
 
             // apply transpose operations
             if (transa == AmpblasConjTrans)
-                a_local = _detail::conjugate::op(a_local);
+                a_local = conjugate::op(a_local);
             if (transb == AmpblasConjTrans)
-                b_local = _detail::conjugate::op(b_local);
+                b_local = conjugate::op(b_local);
 
             // wait for reads
             tid.barrier.wait_with_tile_static_memory_fence();
@@ -90,13 +90,15 @@ void gemm(const concurrency::accelerator_view& av, value_type alpha, const concu
         const concurrency::index<2> c_idx(j+row, i+col);
 
         // apply alpha & beta
-        value_type c_val = _detail::guarded_read<guarded>(c, c_idx);
+        value_type c_val = guarded_read<guarded>(c, c_idx);
         c_val = alpha*sum + beta*c_val;
 
         // final write
-        _detail::guarded_write<true>(c, c_idx, c_val);
-
+        guarded_write<guarded>(c, c_idx, c_val);
 	});
+
+    // testing...
+    const_cast<concurrency::accelerator_view&>(av).wait();
 }
 
 } // namespace _detail
@@ -225,6 +227,7 @@ void gemm(enum AMPBLAS_ORDER order, enum AMPBLAS_TRANSPOSE transa, enum AMPBLAS_
 
     // forward to tuning routine
     gemm(get_current_accelerator_view(), transa, transb, alpha, a_mat, b_mat, beta, c_mat);
+
 }
 
 } // namespace ampblas

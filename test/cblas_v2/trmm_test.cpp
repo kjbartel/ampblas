@@ -118,6 +118,9 @@ public:
         ampblas_xtrmm(AmpblasColMajor, p.side, p.uplo, p.trans, p.diag, p.m, p.n, ampcblas_cast(p.alpha), ampcblas_cast(A_amp.data()), A_amp.ld(), ampcblas_cast(B_amp.data()), B_amp.ld());
         stop_ampblas_test();
 
+        // synchronize outputs
+        B_amp.synchronize();
+
         // calculate error
         check_error(B, B_amp);
     }
@@ -143,27 +146,27 @@ public:
         diag.push_back(AmpblasUnit);
 
         std::vector<int> m;
-        //m.push_back(16);
-        //m.push_back(20);
+        m.push_back(16);
+        m.push_back(20);
         m.push_back(64);
 
         std::vector<int> n;
-        //n.push_back(16);
-        //n.push_back(20);
+        n.push_back(16);
+        n.push_back(20);
         n.push_back(64);
 
         std::vector<value_type> alpha;
         alpha.push_back( value_type(1) );
-        //alpha.push_back( value_type(-1) );
-        //alpha.push_back( value_type(0) );
+        alpha.push_back( value_type(-1) );
+        alpha.push_back( value_type(0) );
 
         std::vector<int> lda_offset;
         lda_offset.push_back(0);
-        //lda_offset.push_back(4);
+        lda_offset.push_back(4);
 
         std::vector<int> ldb_offset;
         ldb_offset.push_back(0);
-        //ldb_offset.push_back(4);
+        ldb_offset.push_back(4);
 
         paramter_exploder( side, uplo, trans, diag, m, n, alpha, lda_offset, ldb_offset );
     }

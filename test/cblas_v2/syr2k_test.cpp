@@ -105,6 +105,9 @@ public:
         ampblas_xsyr2k(AmpblasColMajor, p.uplo, p.trans, p.n, p.k, ampcblas_cast(p.alpha), ampcblas_cast(A_amp.data()), A_amp.ld(), ampcblas_cast(B_amp.data()), B_amp.ld(), ampcblas_cast(p.beta), ampcblas_cast(C_amp.data()), C_amp.ld() );
         stop_ampblas_test();
 
+        // synchronize outputs
+        C_amp.synchronize();
+
         // calculate error
         check_error(C, C_amp);
     }
