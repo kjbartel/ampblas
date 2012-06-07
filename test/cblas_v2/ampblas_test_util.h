@@ -23,9 +23,10 @@
 #pragma once
 
 #include "ampblas_defs.h"
-#include "ampblas_runtime.h"
+
 #include "ampblas_complex.h"
-#include "ampblas_ccomplex.h"
+#include "ampcblas_complex.h"
+#include "ampcblas_runtime.h"
 
 #include "cblas_wrapper.h"
 

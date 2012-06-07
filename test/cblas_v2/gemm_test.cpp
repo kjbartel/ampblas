@@ -103,7 +103,7 @@ public:
         // generate data
         randomize(A);
         randomize(B);
-		// randomize(C);
+		randomize(C);
 
         // ampblas data
         ampblas_test_matrix<value_type> C_amp(C);
@@ -123,67 +123,6 @@ public:
 
         // calculate error
         check_error(C, C_amp);
-    }
-
-    // this is start of some currently unused reference code to show how to properly time a routine without memory transfers
-    void run_perf_test(const typed_parameters& p)
-    {
-        // derived parameters
-		auto row_a = (p.transa == AmpblasNoTrans ? p.m : p.k);
-		auto col_a = (p.transa == AmpblasNoTrans ? p.k : p.m);
-		auto row_b = (p.transb == AmpblasNoTrans ? p.k : p.n);
-		auto col_b = (p.transb == AmpblasNoTrans ? p.n : p.k);
-
-		// column major
-		int lda = row_a + p.lda_offset;
-		int ldb = row_b + p.ldb_offset;
-		int ldc = p.m + p.ldc_offset;
-
-        // reference data
-        test_matrix<value_type> A(row_a, col_a, lda);
-        test_matrix<value_type> B(row_b, col_b, ldb);     
-		test_matrix<value_type> C(p.m, p.n, ldc);
-
-        // generate data
-        randomize(A);
-        randomize(B);
-		// randomize(C);
-
-        // set current AV
-        concurrency::accelerator_view av(concurrency::accelerator().default_view);
-
-        // TEMP DATA
-        std::vector<value_type> A_TEMP( p.m*p.k, value_type(1) );
-        std::vector<value_type> B_TEMP( p.k*p.n, value_type(2) );
-        std::vector<value_type> C_TEMP( p.m*p.n, value_type(0) );
-
-                // TEMP!
-        concurrency::array_view<value_type,2> host_view_a(p.k, p.m, A_TEMP.data());
-        concurrency::array_view<value_type,2> host_view_b(p.n, p.k, B_TEMP.data());
-        concurrency::array_view<value_type,2> host_view_c(p.n, p.m, C_TEMP.data());
-
-    // explicitly copy to device
-        concurrency::array<value_type,2> A_a( host_view_a );
-        concurrency::array<value_type,2> B_a( host_view_b );
-        concurrency::array<value_type,2> C_a( host_view_c );
-
-        // make views
-        concurrency::array_view<const value_type, 2> A_av(A_a);
-        concurrency::array_view<const value_type, 2> B_av(B_a);
-        concurrency::array_view<value_type, 2> C_av(C_a);
-
-        // run routine
-        start_ampblas_test();
-        ampblas::gemm( av, p.transa, p.transb, p.alpha, A_av, B_av, p.beta, C_av );
-        stop_ampblas_test();
-
-        // copy back
-        concurrency::copy( C_TEMP.begin(), C_TEMP.end(), C_av );
-
-        double gflops = flops(p) / double(1e9);
-
-        std::cout << "Host: " << gflops / reference_time() << std::endl;
-        std::cout << "Amp : " << gflops / ampblas_time()  << std::endl; 
     }
 
     gemm_test()
@@ -234,7 +173,7 @@ public:
 		
 		std::vector<int> ldc_offset;
 		ldc_offset.push_back(0);
-		//ldc_offset.push_back(4);
+		ldc_offset.push_back(4);
 
         paramter_exploder(transa,transb,m,n,k,alpha,beta,lda_offset,ldb_offset,ldc_offset);
     }

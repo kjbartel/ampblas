@@ -30,12 +30,13 @@
 #include "ampxblas.h"
 #include "cblas_wrapper.h"
 
-#include "ampblas_runtime.h"
 #include "ampblas_complex.h"
 
 #include "ampblas_test_list.h"
 #include "ampblas_test_util.h"
 #include "ampblas_test_timer.h"
+
+#include "ampcblas_runtime.h"
 
 #ifdef max
 #undef max
@@ -107,14 +108,14 @@ public:
 		if (is_double())
         {
             // see if we at least have limited doubles
-            if(!ampblas::get_current_accelerator_view().accelerator.supports_limited_double_precision)
+            if(!ampcblas::get_current_accelerator_view().accelerator.supports_limited_double_precision)
 		    {
 			    std::cout << "SKIPPED (no double support)" << std::endl;
 			    return;
 		    }
 
             // some routines require full double support
-            if (requires_full_double() && !ampblas::get_current_accelerator_view().accelerator.supports_double_precision)
+            if (requires_full_double() && !ampcblas::get_current_accelerator_view().accelerator.supports_double_precision)
 		    {
 			    std::cout << "SKIPPED (needs full double support)" << std::endl;
 			    return;
@@ -268,7 +269,7 @@ protected:
             ampblas_test_runtime_error(err);
 
         // synchronize
-        ampblas::get_current_accelerator_view().wait();
+        ampcblas::get_current_accelerator_view().wait();
 
         amp_time = timer.elapsed();
     }
