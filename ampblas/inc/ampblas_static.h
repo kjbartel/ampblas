@@ -27,23 +27,39 @@
 
 #include <amp.h>
 
-namespace ampblas_static {
+#include "ampblas_defs.h"
+#include "ampblas_complex.h"
 
-using ampblas::complex;
-using ampblas::transpose;
-using ampblas::diag;
-using ampblas::side;
-using ampblas::uplo;
+namespace ampblas {
+namespace link {
 
 //-----------------------------------------------------------------------------
 // BLAS 3
 //----------------------------------------------------------------------------- 
     
-void gemm(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, float alpha, const concurrency::array_view<const float,2>& a, const concurrency::array_view<const float,2>& b, float beta, const concurrency::array_view<float,2>& c);
-void gemm(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, double alpha, const concurrency::array_view<const double,2>& a, const concurrency::array_view<const double,2>& b, double beta, const concurrency::array_view<double,2>& c);
+void gemm(const concurrency::accelerator_view& av, transpose transa, transpose transb, float alpha, const concurrency::array_view<const float,2>& a, const concurrency::array_view<const float,2>& b, float beta, const concurrency::array_view<float,2>& c);
+void gemm(const concurrency::accelerator_view& av, transpose transa, transpose transb, double alpha, const concurrency::array_view<const double,2>& a, const concurrency::array_view<const double,2>& b, double beta, const concurrency::array_view<double,2>& c);
+void gemm(const concurrency::accelerator_view& av, transpose transa, transpose transb, complex<float> alpha, const concurrency::array_view<const complex<float>,2>& a, const concurrency::array_view<const complex<float>,2>& b, complex<float> beta, const concurrency::array_view<complex<float>,2>& c);
+void gemm(const concurrency::accelerator_view& av, transpose transa, transpose transb, complex<double> alpha, const concurrency::array_view<const complex<double>,2>& a, const concurrency::array_view<const complex<double>,2>& b, complex<double> beta, const concurrency::array_view<complex<double>,2>& c);
 
+void trsm(const concurrency::accelerator_view& av, side side, uplo uplo, transpose transa, diag diag, float alpha, const concurrency::array_view<const float,2>& a, const concurrency::array_view<float,2>& b);
+void trsm(const concurrency::accelerator_view& av, side side, uplo uplo, transpose transa, diag diag, double alpha, const concurrency::array_view<const double,2>& a, const concurrency::array_view<double,2>& b);
+void trsm(const concurrency::accelerator_view& av, side side, uplo uplo, transpose transa, diag diag, complex<float> alpha, const concurrency::array_view<const complex<float>,2>& a, const concurrency::array_view<complex<float>,2>& b);
+void trsm(const concurrency::accelerator_view& av, side side, uplo uplo, transpose transa, diag diag, complex<double> alpha, const concurrency::array_view<const complex<double>,2>& a, const concurrency::array_view<complex<double>,2>& b);
+
+void herk(const concurrency::accelerator_view& av, uplo uplo, transpose trans, float  alpha, const concurrency::array_view<const float,2>&           a_mat, float  beta, const concurrency::array_view<float,2>&           c_mat);
+void herk(const concurrency::accelerator_view& av, uplo uplo, transpose trans, double alpha, const concurrency::array_view<const double ,2>&         a_mat, double beta, const concurrency::array_view<double ,2>&         c_mat);
+void herk(const concurrency::accelerator_view& av, uplo uplo, transpose trans, float  alpha, const concurrency::array_view<const complex<float>,2>&  a_mat, float  beta, const concurrency::array_view<complex<float>,2>&  c_mat);
+void herk(const concurrency::accelerator_view& av, uplo uplo, transpose trans, double alpha, const concurrency::array_view<const complex<double>,2>& a_mat, double beta, const concurrency::array_view<complex<double>,2>& c_mat);
+
+} // namespace link
 } // namespace ampblas
 
-
+// Visual Studio library link pragma
+#ifndef _DEBUG
+    #pragma comment(lib,"ampblas_static.lib")
+#else
+    #pragma comment(lib,"ampblas_staticd.lib")
+#endif
 
 #endif // AMPBLAS_STATIC_H

@@ -119,28 +119,18 @@ void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum cl
     _detail::syrk<trans_op, tile_size>(av, uplo, trans, alpha, a_mat, beta, c_mat);
 }
 
+// implied noop
 template <typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
 void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
 {
     syrk<_detail::noop>(av, uplo, trans, alpha, a_mat, beta, c_mat);
 }
 
+// implied conjugate
 template <typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
-void herk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+void herk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
 {
     syrk<_detail::conjugate>(av, uplo, trans, alpha, a_mat, beta, c_mat);
-}
-
-template <typename scalar_type, typename value_type>
-void syrk(enum AMPBLAS_ORDER order, enum class uplo uplo, enum class transpose trans, int n, int k, scalar_type alpha, const value_type* a, int lda, scalar_type beta, value_type* c, int ldc)
-{
-    syrk<_detail::noop>(order, uplo, trans, n, k, alpha, a, lda, beta, c, ldc);
-}
-
-template <typename scalar_type, typename value_type>
-void herk(enum AMPBLAS_ORDER order, enum class uplo uplo, enum class transpose trans, int n, int k, scalar_type alpha, const value_type* a, int lda, scalar_type beta, value_type* c, int ldc)
-{
-    syrk<_detail::conjugate>(order, uplo, trans, n, k, alpha, a, lda, beta, c, ldc);
 }
 
 } // namespace ampblas
