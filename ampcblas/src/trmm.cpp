@@ -39,7 +39,7 @@ void trmm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
         return;
 
     // derived parameters
-    int nrowa = (side == AmpblasLeft ? m : n);
+    int k = (side == AmpblasLeft ? m : n);
 
     // argument check
     if (m < 0)
@@ -48,7 +48,7 @@ void trmm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
         argument_error("trmm", 7);
     if (a == nullptr)
         argument_error("trmm", 9);
-    if (lda < nrowa)
+    if (lda < k)
         argument_error("trmm", 10);
     if (b == nullptr)
         argument_error("trmm", 11);
@@ -56,7 +56,7 @@ void trmm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
         argument_error("trmm", 12);
 
     // create views
-    auto a_mat = make_matrix_view(nrowa, nrowa, a, lda);
+    auto a_mat = make_matrix_view(k, k, a, lda);
     auto b_mat = make_matrix_view(m, n, b, ldb);
     auto b_mat_const = make_matrix_view(m, n, const_cast<const value_type*>(b), ldb);
 

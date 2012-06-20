@@ -79,6 +79,33 @@
     <ClInclude Include="inc\ampblas_static.h">
       <Filter>inc</Filter>
     </ClInclude>
+    <ClInclude Include="inc\ampblas_dev.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\ampblas_utility.h">
+      <Filter>inc</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\adapter.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\algorithm.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\complex.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\math.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\parameter_check.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\reduction.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\utility\storage.h">
+      <Filter>inc\utility</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -89,6 +116,9 @@
     </Filter>
     <Filter Include="inc\detail">
       <UniqueIdentifier>{41be1d34-35fc-43eb-a210-6895b4be329d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\utility">
+      <UniqueIdentifier>{71c5b02b-deee-4dd9-be82-63915e4f28c2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

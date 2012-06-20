@@ -14,22 +14,22 @@
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
  * 
- * scal.h
+ * adapter.h
+ *
+ * Adapter classes to wrap C++ AMP class into easier to manipulate class
  *
  *---------------------------------------------------------------------------*/
 
-#include "ampblas_dev.h"
+#ifndef AMPBLAS_UTILITY_ADAPTER_H
+#define AMPBLAS_UTILITY_ADAPTER_H
 
-namespace ampblas {
+#include "ampblas_config.h"
 
-//-------------------------------------------------------------------------
-// SCAL
-//-------------------------------------------------------------------------
+AMPBLAS_NAMESPACE_BEGIN
+DETAIL_NAMESPACE_BEGIN
 
-template <typename alpha_type, typename x_vector_type>
-void scal(const concurrency::accelerator_view& av, alpha_type alpha, x_vector_type&& x)
-{
-    _detail::scale(av, x.extent, alpha, x);
-}
 
-} // namespace ampblas
+DETAIL_NAMESPACE_END
+AMPBLAS_NAMESPACE_END
+
+#endif // AMPBLAS_UTILITY_ADAPTER_H

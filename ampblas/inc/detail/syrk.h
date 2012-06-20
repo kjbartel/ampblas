@@ -18,15 +18,25 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#ifndef AMPBLAS_SYRK_H
+#define AMPBLAS_SYRK_H
+
+#include "ampblas_dev.h"
+
+#include "gemm.h"
 
 namespace ampblas {
 namespace _detail {
 
-template <typename trans_op, int tile_size, typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
-void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+template <typename trans_op, int tile_size, typename scalar_type, typename a_type, typename c_type>
+void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, scalar_type alpha, const a_type& a_mat, scalar_type beta, const c_type& c_mat)
 {
-    typedef a_value_type value_type;
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<c_type>::value, "c_type must be an array_view" ); 
+
+    // 
+    typedef c_type::value_type value_type;
 
     // pad() has undesirable functionality - pads even when unnecessary
     // auto e = c_mat.extent.tile<16,16>().pad();
@@ -98,7 +108,7 @@ void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum cl
                     _detail::only_real(c_val);
                 }
 
-                if ( beta != beta_type() )
+                if ( beta != scalar_type() )
                     out += beta*c_val;
 
                 c_mat[idx_c] = out;
@@ -107,30 +117,99 @@ void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum cl
     );
 }
 
-} // namespace _detail
+// tuning interface
+template <typename trans_op, typename scalar_type, typename a_type, typename c_type>
+void recursive_syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, scalar_type alpha, const a_type& a, scalar_type beta, const c_type& c)
+{
+    const order S = order::col_major;
+    typedef typename a_type::value_type value_type;
 
-template <typename trans_op, typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
-void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+    int n1, n2;
+    const int rb = 384; 
+
+    // 't' for noop and 'c' for complex conjugate
+    const enum class transpose trans_type = transpose_type<trans_op>::value;
+
+    if( ( n1 = n - rb ) <= 0 )
+    {
+        int a_row = (trans == transpose::no_trans ? n : k);
+        int a_col = (trans == transpose::no_trans ? k : n); 
+
+        // tuning interface
+        _detail::syrk<trans_op>( av, uplo, trans, alpha, a.section(extent<S>(a_row, a_col)), beta, c.section(extent<S>(n,n)) );
+        return;
+    }
+
+    n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+    if ( uplo == uplo::upper && trans != transpose::no_trans )
+    {
+        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        gemm( av, trans_type, transpose::no_trans, n1, n2, k, value_type(alpha), a, a.section(index<S>(0,n1)), value_type(beta), c.section(index<S>(0,n1)) );
+        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+    }
+    else if ( uplo == uplo::upper && trans == transpose::no_trans )
+    {
+        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        gemm( av, transpose::no_trans, trans_type, n1, n2, k, value_type(alpha), a, a.section(index<S>(n1,0)), value_type(beta), c.section(index<S>(0,n1)) );
+        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+    }
+    else if ( uplo == uplo::lower && trans != transpose::no_trans )
+    {
+        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        gemm( av, trans_type, transpose::no_trans, n2, n1, k, value_type(alpha), a.section(index<S>(0,n1)), a, value_type(beta), c.section(index<S>(n1,0)) );
+        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+    }
+    else if ( uplo == uplo::lower && trans == transpose::no_trans )
+    {
+        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        gemm( av, transpose::no_trans, trans_type, n2, n1, k, value_type(alpha), a.section(index<S>(n1,0)), a, value_type(beta), c.section(index<S>(n1,0)) );
+        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+    }
+}
+
+// tuning interface
+template <typename trans_op, typename scalar_type, typename a_type, typename c_type>
+void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, scalar_type alpha, const a_type& a_mat, scalar_type beta, const c_type& c_mat)
 {
     // tuning parameters
     const int tile_size = 16;
 
     // main routine
-    _detail::syrk<trans_op, tile_size>(av, uplo, trans, alpha, a_mat, beta, c_mat);
+    syrk<trans_op, tile_size>(av, uplo, trans, alpha, a_mat, beta, c_mat);
 }
 
-// implied noop
-template <typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
-void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+} // namespace _detail
+
+template <typename trans_op, typename scalar_type, typename a_type, typename c_type>
+void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, scalar_type alpha, const a_type& a, scalar_type beta, const c_type& c)
+{
+    const order S = order::col_major;
+
+    const int n = _detail::rows<S>(c.extent);
+    const int a_row = _detail::rows<S>(a.extent);
+    const int a_col = _detail::columns<S>(a.extent);
+    const int k = (trans == transpose::no_trans ? a_col : a_row);
+
+    // forward to recursive interface
+    _detail::recursive_syrk<trans_op>(av, uplo, trans, n, k, alpha, a, beta, c);
+}
+
+// implied noop interface
+template <typename scalar_type, typename a_type, typename c_type>
+void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, scalar_type alpha, const a_type& a_mat, scalar_type beta, const c_type& c_mat)
 {
     syrk<_detail::noop>(av, uplo, trans, alpha, a_mat, beta, c_mat);
 }
 
-// implied conjugate
-template <typename alpha_type, typename a_value_type, typename beta_type, typename c_value_type>
-void herk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+// implied conjugate operation interface
+template <typename scalar_type, typename a_type, typename c_type>
+void herk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, scalar_type alpha, const a_type& a_mat, scalar_type beta, const c_type& c_mat)
 {
     syrk<_detail::conjugate>(av, uplo, trans, alpha, a_mat, beta, c_mat);
 }
 
 } // namespace ampblas
+
+
+#endif // AMPBLAS_SYRK_H 

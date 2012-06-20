@@ -39,7 +39,7 @@ void symm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
         return;
 
     // derived parameters
-    int nrowa = (side == AmpblasLeft ? m : n);
+    int k = (side == AmpblasLeft ? m : n);
 
     // argument check
     if (m < 0)
@@ -48,19 +48,19 @@ void symm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
         argument_error("symm", 5);
     if (a == nullptr)
         argument_error("symm", 7);
-    if (lda < std::max(1,nrowa))
+    if (lda < k)
         argument_error("symm", 8);
     if (b == nullptr)
         argument_error("symm", 9);
-    if (ldb < std::max(1,m))
+    if (ldb < m)
         argument_error("symm", 10);
     if (c == nullptr)
         argument_error("symm", 12);
-    if (ldc < std::max(1,m))
+    if (ldc < m)
         argument_error("symm", 13);
 
     // create views
-    auto a_mat = make_matrix_view(nrowa, nrowa, a, lda);
+    auto a_mat = make_matrix_view(k, k, a, lda);
     auto b_mat = make_matrix_view(m, n, b, ldb);
     auto c_mat = make_matrix_view(m, n, c, ldc);
 

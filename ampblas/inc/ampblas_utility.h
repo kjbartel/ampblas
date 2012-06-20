@@ -14,22 +14,21 @@
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
  * 
- * scal.h
+ * ampblas_utility.h
+ *
+ * Single header to include all of the utility headers
  *
  *---------------------------------------------------------------------------*/
 
-#include "ampblas_dev.h"
+#ifndef AMPBLAS_UTILITY_H
+#define AMPBLAS_UTILITY_H
 
-namespace ampblas {
+#include "utility/adapter.h"
+#include "utility/algorithm.h"
+#include "utility/complex.h"
+#include "utility/math.h"
+#include "utility/reduction.h"
+#include "utility/parameter_check.h"
+#include "utility/storage.h"
 
-//-------------------------------------------------------------------------
-// SCAL
-//-------------------------------------------------------------------------
-
-template <typename alpha_type, typename x_vector_type>
-void scal(const concurrency::accelerator_view& av, alpha_type alpha, x_vector_type&& x)
-{
-    _detail::scale(av, x.extent, alpha, x);
-}
-
-} // namespace ampblas
+#endif // AMPBLAS_UTILITY_H

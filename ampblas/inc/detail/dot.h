@@ -18,7 +18,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#include "ampblas_dev.h"
 
 namespace ampblas {
 namespace _detail {
@@ -57,8 +57,6 @@ template <typename ret_type, typename trans_op, typename array_type>
 ret_type dot(const concurrency::accelerator_view& av, const array_type& x, const array_type& y)
 {
     typedef typename array_type::value_type T;
-
-    _detail::require_matched_extent(x, y);
 
     const int n = x.extent[0];
 

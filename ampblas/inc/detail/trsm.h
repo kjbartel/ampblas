@@ -18,14 +18,20 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#include "ampblas_dev.h"
+
+#include "gemm.h"
 
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, bool guarded, typename value_type>
-void trsm_ll(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+template <int tile_size, bool guarded, typename scalar_type, typename a_type, typename b_type>
+void trsm_ll(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
+
     // runtime sizes
     int m = b.extent[1];
     int n = b.extent[0];
@@ -40,8 +46,8 @@ void trsm_ll(const concurrency::accelerator_view& av, enum class transpose trans
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
         // shared memory buffers
-        tile_static value_type a_tile[tile_size][tile_size];
-        tile_static value_type b_tile[tile_size][tile_size];
+        tile_static scalar_type a_tile[tile_size][tile_size];
+        tile_static scalar_type b_tile[tile_size][tile_size];
 
         // local indexes
         const int col = tid.local[0];
@@ -49,8 +55,8 @@ void trsm_ll(const concurrency::accelerator_view& av, enum class transpose trans
 
         // per-thread common alias
         // transpose read pattern still allows for coalesced global memory access
-        value_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
-        value_type& b_local = b_tile[row][col];
+        scalar_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
+        scalar_type& b_local = b_tile[row][col];
 
         // global j index
         const int j = tid.tile_origin[0];
@@ -78,7 +84,7 @@ void trsm_ll(const concurrency::accelerator_view& av, enum class transpose trans
                 for (int ii=0; ii<tile_size; ii++)
                 {
                     // elimation scalar
-                    value_type temp = b_tile[jj][ii];
+                    scalar_type temp = b_tile[jj][ii];
                     if (diag == diag::non_unit)
                         temp /= a_tile[ii][ii];
 
@@ -106,14 +112,14 @@ void trsm_ll(const concurrency::accelerator_view& av, enum class transpose trans
                 tid.barrier.wait();
 
                 // accumulate
-                value_type sum = value_type();
+                scalar_type sum = scalar_type();
 
                 // TODO: explictly unrollable?
                 for (int l=0; l<tile_size; l++)
                     sum += a_tile[l][col] * b_tile[row][l];
 
                 // update
-                _detail::guarded_update<guarded>(b, concurrency::index<2>(j+row, k+col), _detail::subtract<value_type>(sum));
+                _detail::guarded_update<guarded>(b, concurrency::index<2>(j+row, k+col), _detail::subtract<scalar_type>(sum));
 
                 // wait for a to finish being read
                 tid.barrier.wait();
@@ -125,9 +131,13 @@ void trsm_ll(const concurrency::accelerator_view& av, enum class transpose trans
     });
 }
 
-template <int tile_size, bool guarded, typename value_type>
-void trsm_lu(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+template <int tile_size, bool guarded, typename scalar_type, typename a_type, typename b_type>
+void trsm_lu(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
+
     // runtime sizes
     int m = b.extent[1];
     int n = b.extent[0];
@@ -145,8 +155,8 @@ void trsm_lu(const concurrency::accelerator_view& av, enum class transpose trans
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
         // shared memory buffers
-        tile_static value_type a_tile[tile_size][tile_size];
-        tile_static value_type b_tile[tile_size][tile_size];
+        tile_static scalar_type a_tile[tile_size][tile_size];
+        tile_static scalar_type b_tile[tile_size][tile_size];
 
         // local indexes
         const int col = tid.local[0];
@@ -154,8 +164,8 @@ void trsm_lu(const concurrency::accelerator_view& av, enum class transpose trans
 
         // per-thread common alias
         // transpose read pattern still allows for coalesced global memory access
-        value_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
-        value_type& b_local = b_tile[row][col];
+        scalar_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
+        scalar_type& b_local = b_tile[row][col];
 
         // global j index
         const int j = tid.tile_origin[0];
@@ -186,10 +196,10 @@ void trsm_lu(const concurrency::accelerator_view& av, enum class transpose trans
                 for (int ii=_detail::min(tile_size-1,m-1-i); ii>=0; ii--)
                 {
                     // elimation scalar
-                    value_type temp = b_tile[jj][ii];
+                    scalar_type temp = b_tile[jj][ii];
 
                     if (diag == diag::non_unit)
-                        temp /= (a_tile[ii][ii] == value_type() ? value_type(1) : a_tile[ii][ii]);
+                        temp /= (a_tile[ii][ii] == scalar_type() ? scalar_type(1) : a_tile[ii][ii]);
 
                     // apply
                     for (int kk=0; kk<ii; kk++)
@@ -221,23 +231,27 @@ void trsm_lu(const concurrency::accelerator_view& av, enum class transpose trans
                 tid.barrier.wait_with_tile_static_memory_fence();
 
                 // accumulate
-                value_type sum = value_type();
+                scalar_type sum = scalar_type();
 
                 // TODO: explictly unrollable?
                 for (int l=0; l<tile_size; l++)
                     sum += a_tile[l][col] * b_tile[row][l];
 
                 // update
-                _detail::guarded_update<guarded>(b, concurrency::index<2>(j+row, k+col), _detail::subtract<value_type>(sum));
+                _detail::guarded_update<guarded>(b, concurrency::index<2>(j+row, k+col), _detail::subtract<scalar_type>(sum));
                 tid.barrier.wait_with_tile_static_memory_fence();
             }
         }
     });
 }
 
-template <int tile_size, bool guarded, typename value_type>
-void trsm_rl(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+template <int tile_size, bool guarded, typename scalar_type, typename a_type, typename b_type>
+void trsm_rl(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b)
 {
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
+
     // runtime sizes
     int m = b.extent[1];
     int n = b.extent[0];
@@ -255,8 +269,8 @@ void trsm_rl(const concurrency::accelerator_view& av, enum class transpose trans
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
         // shared memory buffers
-        tile_static value_type a_tile[tile_size][tile_size];
-        tile_static value_type b_tile[tile_size][tile_size];
+        tile_static scalar_type a_tile[tile_size][tile_size];
+        tile_static scalar_type b_tile[tile_size][tile_size];
 
         // local indexes
         const int col = tid.local[0];
@@ -264,8 +278,8 @@ void trsm_rl(const concurrency::accelerator_view& av, enum class transpose trans
 
         // per-thread common alias
         // transpose read pattern still allows for coalesced global memory access
-        value_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
-        value_type& b_local = b_tile[row][col];
+        scalar_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
+        scalar_type& b_local = b_tile[row][col];
         
         // global i index
         const int i = tid.tile_origin[0];
@@ -296,10 +310,10 @@ void trsm_rl(const concurrency::accelerator_view& av, enum class transpose trans
                 for (int jj=_detail::min(tile_size-1,n-1-j); jj>=0; jj--)
                 {
                     // elimation scalar
-                    value_type temp = b_tile[jj][ii];
+                    scalar_type temp = b_tile[jj][ii];
 
                     if (diag == diag::non_unit)
-                        temp /= (a_tile[jj][jj] == value_type() ? value_type(1) : a_tile[jj][jj]);
+                        temp /= (a_tile[jj][jj] == scalar_type() ? scalar_type(1) : a_tile[jj][jj]);
 
                     // apply
                     for (int kk=0; kk<jj; kk++)
@@ -332,14 +346,14 @@ void trsm_rl(const concurrency::accelerator_view& av, enum class transpose trans
                 tid.barrier.wait();
 
                 // accumulate
-                value_type sum = value_type();
+                scalar_type sum = scalar_type();
 
                 // TODO: explictly unrollable?
                 for (int l=0; l<tile_size; l++)
                     sum += b_tile[l][col] * a_tile[row][l];
 
                 // update
-                _detail::guarded_update<guarded>(b, concurrency::index<2>(k+row, i+col), _detail::subtract<value_type>(sum));
+                _detail::guarded_update<guarded>(b, concurrency::index<2>(k+row, i+col), _detail::subtract<scalar_type>(sum));
 
                 // wait for a to finish being read
                 tid.barrier.wait_with_tile_static_memory_fence();
@@ -349,9 +363,13 @@ void trsm_rl(const concurrency::accelerator_view& av, enum class transpose trans
     });
 }
 
-template <int tile_size, bool guarded, typename value_type>
-void trsm_ru(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b) 
+template <int tile_size, bool guarded, typename scalar_type, typename a_type, typename b_type>
+void trsm_ru(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
+
     // runtime sizes
     int m = b.extent[1];
     int n = b.extent[0];
@@ -366,8 +384,8 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
         [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
     {
         // shared memory buffers
-        tile_static value_type a_tile[tile_size][tile_size];
-        tile_static value_type b_tile[tile_size][tile_size];
+        tile_static scalar_type a_tile[tile_size][tile_size];
+        tile_static scalar_type b_tile[tile_size][tile_size];
 
         // local indexes
         const int col = tid.local[0];
@@ -375,8 +393,8 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
 
         // per-thread common alias
         // transpose read pattern still allows for coalesced global memory access
-        value_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
-        value_type& b_local = b_tile[row][col];
+        scalar_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
+        scalar_type& b_local = b_tile[row][col];
 
         // global i index
         const int i = tid.tile_origin[0];
@@ -404,10 +422,10 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
                 for (int jj=0; jj<_detail::min(tile_size,n-j);jj++)
                 {
                     // elimation scalar
-                    value_type temp = b_tile[jj][ii];
+                    scalar_type temp = b_tile[jj][ii];
 
                     if (diag == diag::non_unit)
-                        temp /= (a_tile[jj][jj] == value_type() ? value_type(1) : a_tile[jj][jj]);
+                        temp /= (a_tile[jj][jj] == scalar_type() ? scalar_type(1) : a_tile[jj][jj]);
 
                     // apply
                     for (int kk=jj; kk<tile_size; kk++)
@@ -437,14 +455,14 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
                 tid.barrier.wait_with_tile_static_memory_fence();
 
                 // accumulate
-                value_type sum = value_type();
+                scalar_type sum = scalar_type();
 
                 // TODO: explictly unrollable?
                 for (int l=0; l<tile_size; l++)
                     sum += b_tile[l][col] * a_tile[row][l];
 
                 // update
-                _detail::guarded_update<guarded>(b, concurrency::index<2>(k+row, i+col), _detail::subtract<value_type>(sum));
+                _detail::guarded_update<guarded>(b, concurrency::index<2>(k+row, i+col), _detail::subtract<scalar_type>(sum));
 
                 // wait for a to finish being read
                 tid.barrier.wait_with_tile_static_memory_fence();
@@ -453,10 +471,146 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
     });
 }
 
-} // namespace _detail
+// recursive gemm-based implementation
+template <typename scalar_type, typename a_type, typename b_type>
+void recursive_trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, int m, int n, scalar_type alpha, const a_type& a, const b_type& b) 
+{
+    // only column major support for now
+    const enum class order S = order::col_major;
+   
+    // tuning paramater
+    const int rb = 384; 
 
-template <typename value_type>
-void trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, value_type alpha, const concurrency::array_view<const value_type,2>& a, const concurrency::array_view<value_type,2>& b)
+    int m1, m2, n1, n2;
+
+    scalar_type one = scalar_type(1);
+    scalar_type negone = scalar_type(-1);
+
+    // RUT / RUC
+    if (side == side::right && uplo == uplo::upper && transa != transpose::no_trans)
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        gemm( av, transpose::no_trans, transa, m, n1, n2, negone, b.section(index<S>(0,n1)), a.section(index<S>(0,n1)), alpha, b.section(index<S>(0,0)) );
+        recursive_trsm( av, side, uplo, transa, diag, m, n1, one, a, b );
+    }
+
+    // RUN
+    else if ( side == side::right && uplo == uplo::upper && transa == transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m, n1, alpha, a, b );
+        gemm( av, transpose::no_trans, transpose::no_trans, m, n2, n1, negone, b.section(index<S>(0,0)), a.section(index<S>(0,n1)), alpha, b.section(index<S>(0,n1)) );
+        recursive_trsm( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+    }
+
+    // RLT / RLC
+    else if ( side == side::right && uplo == uplo::lower && transa != transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m, n1, alpha, a, b );
+        gemm( av, transpose::no_trans, transa, m, n2, n1, negone, b.section(index<S>(0,0)), a.section(index<S>(n1,0)), alpha, b.section(index<S>(0,n1)) );
+        recursive_trsm( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+    }
+
+
+    // RLN
+    else if ( side == side::right && uplo == uplo::lower && transa == transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        gemm( av, transpose::no_trans, transpose::no_trans, m, n1, n2, negone, b.section(index<S>(0,n1)), a.section(index<S>(n1,0)), alpha,  b.section(index<S>(0,0)) );
+        recursive_trsm( av, side, uplo, transa, diag, m, n1, one, a, b );
+    }
+    
+    // LUT / LUC
+    else if ( side == side::left && uplo == uplo::upper && transa != transpose::no_trans )
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m1, n, alpha, a, b );
+        gemm( av, transa, transpose::no_trans, m2, n, m1, negone, a.section(index<S>(0,m1)), b, alpha, b.section(index<S>(m1,0)) );
+        recursive_trsm( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+    }
+
+    // LUN
+    else if (side == side::left && uplo == uplo::upper && transa == transpose::no_trans)
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        gemm( av, transpose::no_trans, transpose::no_trans, m1, n, m2, negone, a.section(index<S>(0,m1)), b.section(index<S>(m1,0)), alpha, b );
+        recursive_trsm( av, side, uplo, transa, diag, m1, n, one, a, b );
+    }
+
+    // LLT / LLC
+    else if ( side == side::left && uplo == uplo::lower && transa != transpose::no_trans )
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        gemm( av, transa, transpose::no_trans, m1, n, m2, negone, a.section(index<S>(m1,0)), b.section(index<S>(m1,0)), alpha, b );
+        recursive_trsm( av, side, uplo, transa, diag, m1, n, one, a, b );
+    }
+
+    // LLN
+    else if ( side == side::left && uplo == uplo::lower && transa == transpose::no_trans )
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        { 
+            _detail::trsm(av, side, uplo, transa, diag, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)) );
+            return; 
+        }
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_trsm( av, side, uplo, transa, diag, m1, n, alpha, a, b );
+        gemm( av, transpose::no_trans, transpose::no_trans, m2, n, m1, negone, a.section(index<S>(m1,0)), b, alpha, b.section(index<S>(m1,0)) );
+        recursive_trsm( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+    }
+}
+
+// tuning dispatch function
+template <typename scalar_type, typename a_type, typename b_type>
+void trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
     // tuning parameters
     const int tile_size = 8;
@@ -489,6 +643,36 @@ void trsm(const concurrency::accelerator_view& av, enum class side side, enum cl
             _detail::trsm_ru<tile_size,guarded>(av, transa, diag, alpha, a, b);
         }
     }
+}
+
+} // namespace _detail
+
+// use full matrices from A and B
+template <typename scalar_type, typename a_type, typename b_type>
+void trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b)
+{
+    // only column major supported for now
+    const order S = order::col_major;
+
+    // forward to recursive function
+    const int m = _detail::rows<S>(b.extent);
+    const int n = _detail::columns<S>(b.extent);
+    _detail::recursive_trsm(av, side, uplo, transa, diag, m, n, alpha, a, b);
+}
+
+// use sections of A and B specified by m and n
+template <typename scalar_type, typename a_type, typename b_type>
+void trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, int m, int n, scalar_type alpha, const a_type& a, const b_type& b)
+{
+    // only column major supported for now
+    const order S = order::col_major;
+
+    // size check of A
+    concurrency::extent<2> a_extent = _detail::extent<S>(k, k);
+    concurrency::extent<2> b_extent = _detail::extent<S>(m, n);
+    
+    // forward to unsized function
+    trsm(av, side, uplo, transa, alpha, a.section(a_extent), b.section(b_extent));
 }
 
 } // namespace ampblas

@@ -18,15 +18,22 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#include "ampblas_dev.h"
+
+#include "gemm.h"
 
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat)
+template <int tile_size, typename trans_op, typename alpha_type, typename beta_type, typename a_type, typename b_type, typename c_type>
+void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const a_type& a_mat, const b_type& b_mat, beta_type beta, const c_type& c_mat)
 {
-    typedef a_value_type value_type;
+    const enum class order S = order::col_major;
+
+    typedef typename c_type::value_type value_type;
+
+    const int n = rows<S>(c_mat.extent); 
+    const int k = (trans == transpose::no_trans ? columns<S>(a_mat.extent) : rows<S>(a_mat.extent));
 
     // pad() has undesirable functionality - pads even when unnecessary
     // auto e = c_mat.extent.tile<16,16>().pad();
@@ -34,9 +41,9 @@ void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum c
     int tiles = (n+tile_size-1)/tile_size;
 
     // configuration
-    auto e = make_extent(tile_size*tiles,tile_size*tiles);
+    auto e = make_extent(tile_size*tiles, tile_size*tiles);
 
-    concurrency::parallel_for_each (
+    concurrency::parallel_for_each(
         av,
         e.tile<tile_size,tile_size>(),
         [=] (concurrency::tiled_index<tile_size,tile_size> idx_c) restrict(amp)
@@ -121,16 +128,127 @@ void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum c
     );
 }
 
-} // namespace _detail
+template <typename trans_op, typename alpha_type, typename beta_type, typename a_type, typename b_type, typename c_type>
+void recursive_syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, alpha_type alpha, const a_type& a, const b_type& b, beta_type beta, const c_type& c )
+{
+    const order S = order::col_major;
+    typedef typename c_type::value_type value_type;
 
-template <typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+    // tuning parameter
+    const int rb = 384; 
+
+    int n1, n2;
+
+    // if trans_op == noop : trans_type = 'T'
+    // if trans_op == conj : trans_type = 'C'
+    const enum class transpose trans_type = transpose_type<trans_op>::value;
+
+    // ln case
+    if ( uplo == uplo::lower && trans == transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        {
+            _detail::syr2k<trans_op>( av, uplo, trans, alpha, a.section(extent<S>(n,k)), b.section(extent<S>(n,k)), value_type(beta), c.section(extent<S>(n,n)) );
+            return;
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb ); 
+
+        recursive_syr2k<trans_op>( av, uplo, trans, n1, k, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, trans_type, n2, n1, k, value_type(alpha), a.section(index<S>(n1,0)), b, value_type(beta), c.section(index<S>(n1,0)) );
+        gemm( av, transpose::no_trans, trans_type, n2, n1, k, value_type(alpha), b.section(index<S>(n1,0)), a, value_type(1), c.section(index<S>(n1,0)) );
+        recursive_syr2k<trans_op>( av, uplo, trans, n2, k, alpha,  a.section(index<S>(n1,0)), b.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+    }
+
+    // lt case
+    if ( uplo == uplo::lower && trans != transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        {
+            _detail::syr2k<trans_op>( av, uplo, trans, alpha, a.section(extent<S>(k,n)), b.section(extent<S>(k,n)), value_type(beta), c.section(extent<S>(n,n)) );
+            return;
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_syr2k<trans_op>( av, uplo, trans, n1, k, alpha, a, b, beta, c );
+        gemm( av, trans_type, transpose::no_trans, n2, n1, k, value_type(alpha), a.section(index<S>(0,n1)), b, value_type(beta), c.section(index<S>(n1,0)) );
+        gemm( av, trans_type, transpose::no_trans, n2, n1, k, value_type(alpha), b.section(index<S>(0,n1)), a, value_type(1), c.section(index<S>(n1,0)) );
+        recursive_syr2k<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), b.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+    }
+
+    // un case
+    if ( uplo == uplo::upper && trans == transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        {
+            _detail::syr2k<trans_op>( av, uplo, trans, alpha, a.section(extent<S>(n,k)), b.section(extent<S>(n,k)), value_type(beta), c.section(extent<S>(n,n)) );
+            return;
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_syr2k<trans_op>( av, uplo, trans, n1, k, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, trans_type, n1, n2, k, value_type(alpha), a, b.section(index<S>(n1,0)), value_type(beta), c.section(index<S>(0,n1)) );
+        gemm( av, transpose::no_trans, trans_type, n1, n2, k, value_type(alpha), b, a.section(index<S>(n1,0)), value_type(1), c.section(index<S>(0,n1)) );
+        recursive_syr2k<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), b.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+
+    }
+
+    // ut case
+    if ( uplo == uplo::upper && trans != transpose::no_trans )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        {
+            _detail::syr2k<trans_op>( av, uplo, trans, alpha, a.section(extent<S>(k,n)), b.section(extent<S>(k,n)), value_type(beta), c.section(extent<S>(n,n)) );
+            return;
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_syr2k<trans_op>( av, uplo, trans, n1, k, alpha, a, b, beta, c );
+        gemm( av, trans_type, transpose::no_trans, n1, n2, k, value_type(alpha), a, b.section(index<S>(0,n1)), value_type(beta), c.section(index<S>(0,n1)) );
+        gemm( av, trans_type, transpose::no_trans, n1, n2, k, value_type(alpha), b, a.section(index<S>(0,n1)), value_type(1), c.section(index<S>(0,n1)) );
+        recursive_syr2k<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), b.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+    }
+}
+
+template <typename trans_op, typename alpha_type, typename beta_type, typename a_type, typename b_type, typename c_type>
+void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const a_type& a_mat, const b_type& b_mat, beta_type beta, const c_type& c_mat)
 {
     // tuning parameters
     const int tile_size = 16;
 
     // call main routine
-    _detail::syr2k<tile_size,trans_op>(av, uplo, trans, n, k, alpha, a_mat, b_mat, beta, c_mat);
+    _detail::syr2k<tile_size,trans_op>(av, uplo, trans, alpha, a_mat, b_mat, beta, c_mat);
+}
+
+} // namespace _detail
+
+
+
+template <typename trans_op, typename alpha_type, typename beta_type, typename a_type, typename b_type, typename c_type>
+void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, alpha_type alpha, const a_type& a, const b_type& b, beta_type beta, const c_type& c)
+{
+    // extract sizes
+    const order S = order::col_major;
+    const int n = _detail::rows<S>(c.extent); 
+    const int k = (trans == transpose::no_trans ? _detail::columns<S>(a.extent) : _detail::rows<S>(a.extent));
+
+    // pass to recursive routine
+    _detail::recursive_syr2k<trans_op>(av, uplo, trans, n, k, alpha, a, b, beta, c);
+}
+
+template <typename trans_op, typename alpha_type, typename beta_type, typename a_type, typename b_type, typename c_type>
+void syr2k(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, alpha_type alpha, const a_type& a, const b_type& b, beta_type beta, const c_type& c)
+{
+    // build sizes
+    const order S = order::col_major;
+    concurrency::extent<2> c_extent = _detail::extent<S>(n,n);
+    concurrency::extent<2> ab_extent = (trans == transpose::no_trans ? _detail::extent<S>(n,k) : _detail::extent<S>(k,n));
+
+    // forward to "full" routine
+    syr2k<trans_op>( av, uplo, trans, alpha, a.section(ab_extent), b.section(ab_extent), beta, c.section(c_extent) );
 }
 
 } // namespace ampblas

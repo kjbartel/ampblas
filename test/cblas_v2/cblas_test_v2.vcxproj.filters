@@ -81,6 +81,9 @@
     <ClCompile Include="trsv_test.cpp">
       <Filter>BLAS Tests</Filter>
     </ClCompile>
+    <ClCompile Include="symm_test.cpp">
+      <Filter>BLAS Tests</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ampblas_test_bench.h">

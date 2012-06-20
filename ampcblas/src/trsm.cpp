@@ -67,7 +67,7 @@ void trsm(enum AMPBLAS_ORDER order, enum AMPBLAS_SIDE side, enum AMPBLAS_UPLO up
     }
 
 	// implementation
-	ampblas::trsm(get_current_accelerator_view(), cast(side), cast(uplo), cast(transa), cast(diag), alpha, a_mat, b_mat);
+    ampblas::trsm(get_current_accelerator_view(), cast(side), cast(uplo), cast(transa), cast(diag), alpha, a_mat, b_mat);
 }
 
 } // namespace ampcblas

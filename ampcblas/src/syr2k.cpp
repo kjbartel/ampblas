@@ -66,9 +66,9 @@ void syr2k(enum AMPBLAS_ORDER order, enum AMPBLAS_UPLO uplo, enum AMPBLAS_TRANSP
     auto c_mat = make_matrix_view(n, n, c, ldc);
 
     // use triangular scale or fill if alpha is zero and beta is not 1
-    if ( alpha == value_type() )
+    if (alpha == value_type())
     {
-        if ( beta == beta_type() )
+        if (beta == beta_type())
             ampblas::_detail::fill(get_current_accelerator_view(), cast(uplo), value_type(), c_mat);
         else
             ampblas::_detail::scale(get_current_accelerator_view(), cast(uplo), beta, c_mat);

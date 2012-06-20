@@ -18,18 +18,24 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#include "ampblas_dev.h"
+
+#include "gemm.h"
 
 namespace ampblas {
 namespace _detail {
 
-template <int tile_size, typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+template <int tile_size, typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, scalar_type alpha, const a_type& a_mat, const b_type& b_mat, scalar_type beta, c_type& c_mat)
 {
-    typedef a_value_type value_type;
+    typedef typename c_type::value_type value_type;
 
     // pad() has undesirable functionality - pads even when unnecessary
     // auto e = c_mat.extent.tile<16,16>().pad();
+
+    const enum class order S = order::col_major;
+    const int m = rows<S>(c_mat.extent);
+    const int n = columns<S>(c_mat.extent);
 
     int tiles_m = (m+tile_size-1)/tile_size;
     int tiles_n = (n+tile_size-1)/tile_size;
@@ -183,16 +189,129 @@ void symm(const concurrency::accelerator_view& av, enum class side side, enum cl
         );
 }
 
-} // namespace _detail
+template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void recursive_symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, int m, int n, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
+{
+    // only column major support for now
+    const enum class order S = order::col_major;
 
-template <typename trans_op, typename alpha_type, typename a_value_type, typename b_value_type, typename beta_type, typename c_value_type>
-void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, int m, int n, alpha_type alpha, const concurrency::array_view<const a_value_type,2>& a_mat, const concurrency::array_view<const b_value_type,2>& b_mat, beta_type beta, const concurrency::array_view<c_value_type,2>& c_mat )
+    // tuning parameter
+    const int rb = 384; 
+
+    int m1, n1;
+    int m2, n2;
+
+    // if trans_op == noop : trans_type = 'T'
+    // if trans_op == conj : trans_type = 'C'
+    const enum class transpose trans_type = transpose_type<trans_op>::value;
+
+    scalar_type one = scalar_type(1);
+
+    // ll case
+    if ( side == side::left && uplo == uplo::lower )
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        {
+            _detail::symm<trans_op>( av, side, uplo, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)), beta, c.section(extent<S>(m,n)) );
+            return;
+        }
+
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_symm<trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, transpose::no_trans, m2, n, m1, alpha, a.section(index<S>(m1,0)), b, beta, c.section(index<S>(m1,0)) );
+        gemm( av, trans_type, transpose::no_trans, m1, n, m2, alpha, a.section(index<S>(m1,0)), b.section(index<S>(m1,0)), one, c );
+        recursive_symm<trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
+    }
+
+    // lu case
+    else if( side == side::left && uplo == uplo::upper )
+    {
+        if( ( m1 = m - rb ) <= 0 )
+        { 
+            _detail::symm<trans_op>( av, side, uplo, alpha, a.section(extent<S>(m,m)), b.section(extent<S>(m,n)), beta, c.section(extent<S>(m,n)) );
+            return; 
+        }
+
+        m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
+
+        recursive_symm<trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, transpose::no_trans, m1, n, m2, alpha, a.section(index<S>(0,m1)), b.section(index<S>(m1,0)), one, c );
+        gemm( av, trans_type, transpose::no_trans, m2, n, m1, alpha, a.section(index<S>(0,m1)), b, beta, c.section(index<S>(m1,0)) );
+        recursive_symm<trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
+
+    }
+
+    // rl case
+    else if ( side == side::right && uplo == uplo::lower )
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::symm<trans_op>( av, side, uplo, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)), beta, c.section(extent<S>(m,n)) );
+            return;
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_symm<trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, transpose::no_trans, m, n1, n2, alpha, b.section(index<S>(0,n1)), a.section(index<S>(n1,0)), one, c );
+        gemm( av, transpose::no_trans, trans_type, m, n2, n1, alpha, b, a.section(index<S>(n1,0)), beta, c.section(index<S>(0,n1)) );
+        recursive_symm<trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
+    }
+    
+    // ru case
+    else if ( side == side::right && uplo == uplo::upper ) 
+    {
+        if( ( n1 = n - rb ) <= 0 )
+        { 
+            _detail::symm<trans_op>( av, side, uplo, alpha, a.section(extent<S>(n,n)), b.section(extent<S>(m,n)), beta, c.section(extent<S>(m,n)) );
+            return; 
+        }
+
+        n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
+
+        recursive_symm<trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
+        gemm( av, transpose::no_trans, transpose::no_trans, m, n2, n1, alpha, b, a.section(index<S>(0,n1)), beta, c.section(index<S>(0,n1)) );
+        gemm( av, transpose::no_trans, trans_type, m, n1, n2, alpha, b.section(index<S>(0,n1)), a.section(index<S>(0,n1)), one, c );
+        recursive_symm<trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
+    }
+}
+
+template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, scalar_type alpha, const a_type& a_mat, const b_type& b_mat, scalar_type beta, const c_type& c_mat)
 {
     // tuning parameters
     const int tile_size = 16;
 
     // main routine
-    _detail::symm<tile_size,trans_op>(av, side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
+    _detail::symm<tile_size,trans_op>(av, side, uplo, alpha, a_mat, b_mat, beta, c_mat);
+}
+
+
+} // namespace _detail
+
+template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, scalar_type alpha, const a_type& a_mat, const b_type& b_mat, scalar_type beta, const c_type& c_mat)
+{
+    // extract sizes
+    const enum class order S = order::col_major;
+    const int m = _detail::rows<S>(c_mat.extent);
+    const int n = _detail::columns<S>(c_mat.extent);
+
+    // pass to recursive interface
+    _detail::recursive_symm<trans_op>(av, side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
+}
+
+template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, int m, int n, scalar_type alpha, const a_type& a_mat, const b_type& b_mat, scalar_type beta, const c_type& c_mat)
+{
+    // build extents
+    const order S = order::col_major;
+    concurrency::extent<2> a_extent = (side == side::left ? _detail::extent<S>(m,m) : _detail::extent<S>(n,n));
+    concurrency::extent<2> bc_extent = _detail::extent<S>(m,n);
+
+    // pass to unsized interface
+    symm<trans_op>(av, side, uplo, alpha, a_mat.section(a_extent), b_mat.section(bc_extent), beta, c_mat.section(bc_extent));
 }
 
 } // namespace ampblas

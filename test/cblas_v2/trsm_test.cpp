@@ -146,15 +146,10 @@ public:
 		diag.push_back(AmpblasUnit);
 
 		std::vector<int> m;
-        m.push_back(5);
-        m.push_back(50);  
         m.push_back(64);
         m.push_back(96);
         
         std::vector<int> n;
-        n.push_back(8);
-        n.push_back(5);
-        n.push_back(50);
         n.push_back(64);
         n.push_back(96);
 

@@ -55,24 +55,21 @@ public:
 
     std::string name() const
     {
-        return "symm";
+        return "SYMM";
     }
 
     void run_cblas_test(const typed_parameters& p)
     {
-        int nrowa;
-        if ( p.side == AmpblasLeft )
-            nrowa = p.m;
-        else
-            nrowa = p.n;
+        // 
+        int k = (p.side == AmpblasLeft ? p.m : p.n);
 
         // derived parameters
-        int lda = nrowa + p.lda_offset;
+        int lda = k + p.lda_offset;
         int ldb = p.m + p.ldb_offset;
         int ldc = p.m + p.ldc_offset;
 
         // reference data
-        test_matrix<value_type> A(nrowa, nrowa, lda);
+        test_matrix<value_type> A(k, k, lda);
         test_matrix<value_type> B(p.m, p.n, ldb);
         test_matrix<value_type> C(p.m, p.n, ldc);
 
@@ -100,6 +97,9 @@ public:
         ampblas_xsymm( AmpblasColMajor, p.side, p.uplo, p.m, p.n, p.alpha, A_amp.data(), A_amp.ld(), B_amp.data(), B_amp.ld(), p.beta, C_amp.data(), C_amp.ld() );
         stop_ampblas_test();
 
+        // synchronize outputs
+        C_amp.synchronize();
+
         // calculate error
         check_error(C, C_amp);
     }
@@ -117,13 +117,10 @@ public:
 
         std::vector<int> m;
         m.push_back(16);
-        m.push_back(32);
-        m.push_back(19);
         m.push_back(64);
 
         std::vector<int> n;
         n.push_back(16);
-        n.push_back(17);
         n.push_back(64);
 
         std::vector<value_type> alpha;
@@ -154,6 +151,6 @@ public:
     value_type fudge_factor() const { return value_type(20); }
 };
 
-REGISTER_TEST(symm_test,float);
-REGISTER_TEST(symm_test,double);
+REGISTER_TEST(symm_test, float);
+REGISTER_TEST(symm_test, double);
 

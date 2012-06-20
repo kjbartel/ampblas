@@ -13,23 +13,20 @@
  * See the Apache Version 2.0 License for specific language governing 
  * permissions and limitations under the License.
  *---------------------------------------------------------------------------
+ *
+ * ampblas_dev.h
  * 
- * scal.h
+ * Single header to include all of the common development headers containing
+ * various implementation details.
  *
  *---------------------------------------------------------------------------*/
 
-#include "ampblas_dev.h"
+#ifndef AMPBLAS_DEV_H
+#define AMPBLAS_DEV_H
 
-namespace ampblas {
+#include "ampblas_config.h"
+#include "ampblas_utility.h"
+#include "ampblas_defs.h"
+#include "ampblas_complex.h"
 
-//-------------------------------------------------------------------------
-// SCAL
-//-------------------------------------------------------------------------
-
-template <typename alpha_type, typename x_vector_type>
-void scal(const concurrency::accelerator_view& av, alpha_type alpha, x_vector_type&& x)
-{
-    _detail::scale(av, x.extent, alpha, x);
-}
-
-} // namespace ampblas
+#endif // AMPBLAS_DEV_H

@@ -18,7 +18,7 @@
  *
  *---------------------------------------------------------------------------*/
 
-#include "../ampblas_config.h"
+#include "ampblas_dev.h"
 
 namespace ampblas {
 

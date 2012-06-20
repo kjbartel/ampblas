@@ -20,8 +20,7 @@ struct syr2k_parameters
     {}
 
     enum AMPBLAS_UPLO uplo;
-    enum AMPBLAS_TRANSPOSE trans;
-    int n;
+    enum AMPBLAS_TRANSPOSE trans;int n;
     int k;
     value_type alpha;
     value_type beta;
@@ -122,16 +121,14 @@ public:
         std::vector<enum AMPBLAS_TRANSPOSE> trans;
         trans.push_back(AmpblasNoTrans);
         trans.push_back(AmpblasTrans);
+        trans.push_back(AmpblasConjTrans);
 
         std::vector<int> n;
         n.push_back(16);
-        n.push_back(32);
-        n.push_back(19);
         n.push_back(64);
 
         std::vector<int> k;
         k.push_back(16);
-        k.push_back(17);
         k.push_back(64);
 
         std::vector<value_type> alpha;
@@ -161,7 +158,7 @@ public:
 
     real_type fudge_factor() const 
     { 
-        return real_type(20); 
+        return real_type(50); 
     }
 };
 

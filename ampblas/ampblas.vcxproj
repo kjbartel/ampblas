@@ -192,7 +192,9 @@
     <ClInclude Include="inc\ampblas_complex.h" />
     <ClInclude Include="inc\ampblas_config.h" />
     <ClInclude Include="inc\ampblas_defs.h" />
+    <ClInclude Include="inc\ampblas_dev.h" />
     <ClInclude Include="inc\ampblas_static.h" />
+    <ClInclude Include="inc\ampblas_utility.h" />
     <ClInclude Include="inc\detail\amax.h" />
     <ClInclude Include="inc\detail\asum.h" />
     <ClInclude Include="inc\detail\axpy.h" />
@@ -214,6 +216,13 @@
     <ClInclude Include="inc\detail\trmv.h" />
     <ClInclude Include="inc\detail\trsm.h" />
     <ClInclude Include="inc\detail\trsv.h" />
+    <ClInclude Include="inc\utility\adapter.h" />
+    <ClInclude Include="inc\utility\algorithm.h" />
+    <ClInclude Include="inc\utility\complex.h" />
+    <ClInclude Include="inc\utility\math.h" />
+    <ClInclude Include="inc\utility\parameter_check.h" />
+    <ClInclude Include="inc\utility\reduction.h" />
+    <ClInclude Include="inc\utility\storage.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\static.cpp" />

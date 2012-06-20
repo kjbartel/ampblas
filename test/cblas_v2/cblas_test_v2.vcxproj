@@ -34,6 +34,7 @@
     <ClCompile Include="rot_test.cpp" />
     <ClCompile Include="scal_test.cpp" />
     <ClCompile Include="swap_test.cpp" />
+    <ClCompile Include="symm_test.cpp" />
     <ClCompile Include="symv_test.cpp" />
     <ClCompile Include="syr2k_test.cpp" />
     <ClCompile Include="syrk_test.cpp" />
