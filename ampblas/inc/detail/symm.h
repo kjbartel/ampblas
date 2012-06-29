@@ -189,14 +189,11 @@ void symm(const concurrency::accelerator_view& av, enum class side side, enum cl
         );
 }
 
-template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
+template <int rb, typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>
 void recursive_symm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, int m, int n, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
 {
     // only column major support for now
     const enum class order S = order::col_major;
-
-    // tuning parameter
-    const int rb = 384; 
 
     int m1, n1;
     int m2, n2;
@@ -218,10 +215,10 @@ void recursive_symm(const concurrency::accelerator_view& av, enum class side sid
 
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_symm<trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
+        recursive_symm<rb,trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
         gemm( av, transpose::no_trans, transpose::no_trans, m2, n, m1, alpha, a.section(index<S>(m1,0)), b, beta, c.section(index<S>(m1,0)) );
         gemm( av, trans_type, transpose::no_trans, m1, n, m2, alpha, a.section(index<S>(m1,0)), b.section(index<S>(m1,0)), one, c );
-        recursive_symm<trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
+        recursive_symm<rb,trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
     }
 
     // lu case
@@ -235,10 +232,10 @@ void recursive_symm(const concurrency::accelerator_view& av, enum class side sid
 
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_symm<trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
+        recursive_symm<rb,trans_op>( av, side, uplo, m1, n, alpha, a, b, beta, c );
         gemm( av, transpose::no_trans, transpose::no_trans, m1, n, m2, alpha, a.section(index<S>(0,m1)), b.section(index<S>(m1,0)), one, c );
         gemm( av, trans_type, transpose::no_trans, m2, n, m1, alpha, a.section(index<S>(0,m1)), b, beta, c.section(index<S>(m1,0)) );
-        recursive_symm<trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
+        recursive_symm<rb,trans_op>( av, side, uplo, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)), one, c.section(index<S>(m1,0)) );
 
     }
 
@@ -253,10 +250,10 @@ void recursive_symm(const concurrency::accelerator_view& av, enum class side sid
 
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_symm<trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
+        recursive_symm<rb,trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
         gemm( av, transpose::no_trans, transpose::no_trans, m, n1, n2, alpha, b.section(index<S>(0,n1)), a.section(index<S>(n1,0)), one, c );
         gemm( av, transpose::no_trans, trans_type, m, n2, n1, alpha, b, a.section(index<S>(n1,0)), beta, c.section(index<S>(0,n1)) );
-        recursive_symm<trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
+        recursive_symm<rb,trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
     }
     
     // ru case
@@ -270,10 +267,10 @@ void recursive_symm(const concurrency::accelerator_view& av, enum class side sid
 
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_symm<trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
+        recursive_symm<rb,trans_op>( av, side, uplo, m, n1, alpha, a, b, beta, c );
         gemm( av, transpose::no_trans, transpose::no_trans, m, n2, n1, alpha, b, a.section(index<S>(0,n1)), beta, c.section(index<S>(0,n1)) );
         gemm( av, transpose::no_trans, trans_type, m, n1, n2, alpha, b.section(index<S>(0,n1)), a.section(index<S>(0,n1)), one, c );
-        recursive_symm<trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
+        recursive_symm<rb,trans_op>( av, side, uplo, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)), one, c.section(index<S>(0,n1)) );
     }
 }
 
@@ -298,8 +295,11 @@ void symm(const concurrency::accelerator_view& av, enum class side side, enum cl
     const int m = _detail::rows<S>(c_mat.extent);
     const int n = _detail::columns<S>(c_mat.extent);
 
+    // recursive size
+    const int rb = 1024;
+
     // pass to recursive interface
-    _detail::recursive_symm<trans_op>(av, side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
+    _detail::recursive_symm<rb,trans_op>(av, side, uplo, m, n, alpha, a_mat, b_mat, beta, c_mat);
 }
 
 template <typename trans_op, typename scalar_type, typename a_type, typename b_type, typename c_type>

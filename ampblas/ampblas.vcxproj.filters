@@ -106,6 +106,24 @@
     <ClInclude Include="inc\utility\storage.h">
       <Filter>inc\utility</Filter>
     </ClInclude>
+    <ClInclude Include="inc\detail\tuning\gemm.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\detail\tuning\tune.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\detail\tuning\cgemm.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\detail\tuning\dgemm.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\detail\tuning\sgemm.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
+    <ClInclude Include="inc\detail\tuning\zgemm.h">
+      <Filter>inc\detail\tuning</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="src">
@@ -119,6 +137,9 @@
     </Filter>
     <Filter Include="inc\utility">
       <UniqueIdentifier>{71c5b02b-deee-4dd9-be82-63915e4f28c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\detail\tuning">
+      <UniqueIdentifier>{50986e9f-8a70-4a86-a604-8d90b4687683}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

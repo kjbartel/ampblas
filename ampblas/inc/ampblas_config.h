@@ -119,16 +119,19 @@ struct indexed_type
 // 
 
 template <bool enabled, typename value_type>
-inline value_type guarded_read(const concurrency::array_view<value_type,2>& A, const concurrency::index<2>& idx) restrict(cpu,amp)
+inline value_type guarded_read(const concurrency::array_view<value_type,2>& a, const concurrency::index<2>& idx) restrict(cpu,amp)
 {
-    return (enabled && A.extent.contains(idx)) ? A[idx] : value_type();
+    if (!enabled || a.extent.contains(idx))
+        return a[idx];
+    else
+        return value_type();
 }
 
 template <bool enabled, typename value_type>
-inline void guarded_write(const concurrency::array_view<value_type,2>& A, const concurrency::index<2>& idx, const value_type& val) restrict(cpu,amp)
+inline void guarded_write(const concurrency::array_view<value_type,2>& a, const concurrency::index<2>& idx, const value_type& val) restrict(cpu,amp)
 {
-    if (enabled && A.extent.contains(idx))
-        A[idx] = val;
+    if (!enabled || a.extent.contains(idx))
+        a[idx] = val;
 }
 
 template <bool enabled, typename value_type, typename operation>

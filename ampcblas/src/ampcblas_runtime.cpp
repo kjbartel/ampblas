@@ -27,12 +27,6 @@
 #include <concurrent_unordered_map.h> // Microsoft specific 
 #include "ampcblas_runtime.h"
 
-namespace ampcblas {
-
-// !
-
-}
-
 namespace ampcblas 
 {
 

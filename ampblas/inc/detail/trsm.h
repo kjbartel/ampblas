@@ -25,6 +25,12 @@
 namespace ampblas {
 namespace _detail {
 
+template <typename scalar_type>
+struct trsm_tile_size { static const int value = 16; };
+
+template <>
+struct trsm_tile_size<complex<double>> { static const int value = 16; };
+
 template <int tile_size, bool guarded, typename scalar_type, typename a_type, typename b_type>
 void trsm_ll(const concurrency::accelerator_view& av, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
@@ -472,15 +478,12 @@ void trsm_ru(const concurrency::accelerator_view& av, enum class transpose trans
 }
 
 // recursive gemm-based implementation
-template <typename scalar_type, typename a_type, typename b_type>
+template <int rb, typename scalar_type, typename a_type, typename b_type>
 void recursive_trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, int m, int n, scalar_type alpha, const a_type& a, const b_type& b) 
 {
     // only column major support for now
     const enum class order S = order::col_major;
    
-    // tuning paramater
-    const int rb = 384; 
-
     int m1, m2, n1, n2;
 
     scalar_type one = scalar_type(1);
@@ -496,9 +499,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
         gemm( av, transpose::no_trans, transa, m, n1, n2, negone, b.section(index<S>(0,n1)), a.section(index<S>(0,n1)), alpha, b.section(index<S>(0,0)) );
-        recursive_trsm( av, side, uplo, transa, diag, m, n1, one, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n1, one, a, b );
     }
 
     // RUN
@@ -511,9 +514,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m, n1, alpha, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n1, alpha, a, b );
         gemm( av, transpose::no_trans, transpose::no_trans, m, n2, n1, negone, b.section(index<S>(0,0)), a.section(index<S>(0,n1)), alpha, b.section(index<S>(0,n1)) );
-        recursive_trsm( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
     }
 
     // RLT / RLC
@@ -526,9 +529,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m, n1, alpha, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n1, alpha, a, b );
         gemm( av, transpose::no_trans, transa, m, n2, n1, negone, b.section(index<S>(0,0)), a.section(index<S>(n1,0)), alpha, b.section(index<S>(0,n1)) );
-        recursive_trsm( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n2, one, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
     }
 
 
@@ -542,9 +545,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         n2 = n - ( n1 = rb + ( n1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n2, alpha, a.section(index<S>(n1,n1)), b.section(index<S>(0,n1)) );
         gemm( av, transpose::no_trans, transpose::no_trans, m, n1, n2, negone, b.section(index<S>(0,n1)), a.section(index<S>(n1,0)), alpha,  b.section(index<S>(0,0)) );
-        recursive_trsm( av, side, uplo, transa, diag, m, n1, one, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m, n1, one, a, b );
     }
     
     // LUT / LUC
@@ -557,9 +560,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m1, n, alpha, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m1, n, alpha, a, b );
         gemm( av, transa, transpose::no_trans, m2, n, m1, negone, a.section(index<S>(0,m1)), b, alpha, b.section(index<S>(m1,0)) );
-        recursive_trsm( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
     }
 
     // LUN
@@ -572,9 +575,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
         gemm( av, transpose::no_trans, transpose::no_trans, m1, n, m2, negone, a.section(index<S>(0,m1)), b.section(index<S>(m1,0)), alpha, b );
-        recursive_trsm( av, side, uplo, transa, diag, m1, n, one, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m1, n, one, a, b );
     }
 
     // LLT / LLC
@@ -587,9 +590,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m2, n, alpha, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
         gemm( av, transa, transpose::no_trans, m1, n, m2, negone, a.section(index<S>(m1,0)), b.section(index<S>(m1,0)), alpha, b );
-        recursive_trsm( av, side, uplo, transa, diag, m1, n, one, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m1, n, one, a, b );
     }
 
     // LLN
@@ -602,9 +605,9 @@ void recursive_trsm(const concurrency::accelerator_view& av, enum class side sid
         }
         m2 = m - ( m1 = rb + ( m1 / ( rb << 1 ) ) * rb );
 
-        recursive_trsm( av, side, uplo, transa, diag, m1, n, alpha, a, b );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m1, n, alpha, a, b );
         gemm( av, transpose::no_trans, transpose::no_trans, m2, n, m1, negone, a.section(index<S>(m1,0)), b, alpha, b.section(index<S>(m1,0)) );
-        recursive_trsm( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
+        recursive_trsm<rb>( av, side, uplo, transa, diag, m2, n, one, a.section(index<S>(m1,m1)), b.section(index<S>(m1,0)) );
     }
 }
 
@@ -613,7 +616,7 @@ template <typename scalar_type, typename a_type, typename b_type>
 void trsm(const concurrency::accelerator_view& av, enum class side side, enum class uplo uplo, enum class transpose transa, enum class diag diag, scalar_type alpha, const a_type& a, const b_type& b) 
 {
     // tuning parameters
-    const int tile_size = 8;
+    const int tile_size = trsm_tile_size<scalar_type>::value;
     const bool guarded = true;
 
     // select proper kernel based on options
@@ -654,10 +657,13 @@ void trsm(const concurrency::accelerator_view& av, enum class side side, enum cl
     // only column major supported for now
     const order S = order::col_major;
 
+    // recursive cross over point
+    const int rb = 1024;
+
     // forward to recursive function
     const int m = _detail::rows<S>(b.extent);
     const int n = _detail::columns<S>(b.extent);
-    _detail::recursive_trsm(av, side, uplo, transa, diag, m, n, alpha, a, b);
+    _detail::recursive_trsm<rb>(av, side, uplo, transa, diag, m, n, alpha, a, b);
 }
 
 // use sections of A and B specified by m and n

@@ -118,15 +118,13 @@ void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum cl
 }
 
 // tuning interface
-template <typename trans_op, typename scalar_type, typename a_type, typename c_type>
+template <int rb, typename trans_op, typename scalar_type, typename a_type, typename c_type>
 void recursive_syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum class transpose trans, int n, int k, scalar_type alpha, const a_type& a, scalar_type beta, const c_type& c)
 {
     const order S = order::col_major;
     typedef typename a_type::value_type value_type;
 
     int n1, n2;
-    const int rb = 384; 
-
     // 't' for noop and 'c' for complex conjugate
     const enum class transpose trans_type = transpose_type<trans_op>::value;
 
@@ -144,27 +142,27 @@ void recursive_syrk(const concurrency::accelerator_view& av, enum class uplo upl
 
     if ( uplo == uplo::upper && trans != transpose::no_trans )
     {
-        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
         gemm( av, trans_type, transpose::no_trans, n1, n2, k, value_type(alpha), a, a.section(index<S>(0,n1)), value_type(beta), c.section(index<S>(0,n1)) );
-        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
     }
     else if ( uplo == uplo::upper && trans == transpose::no_trans )
     {
-        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
         gemm( av, transpose::no_trans, trans_type, n1, n2, k, value_type(alpha), a, a.section(index<S>(n1,0)), value_type(beta), c.section(index<S>(0,n1)) );
-        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
     }
     else if ( uplo == uplo::lower && trans != transpose::no_trans )
     {
-        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
         gemm( av, trans_type, transpose::no_trans, n2, n1, k, value_type(alpha), a.section(index<S>(0,n1)), a, value_type(beta), c.section(index<S>(n1,0)) );
-        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(0,n1)), beta, c.section(index<S>(n1,n1)) );
     }
     else if ( uplo == uplo::lower && trans == transpose::no_trans )
     {
-        recursive_syrk<trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n1, k, alpha, a, beta, c );
         gemm( av, transpose::no_trans, trans_type, n2, n1, k, value_type(alpha), a.section(index<S>(n1,0)), a, value_type(beta), c.section(index<S>(n1,0)) );
-        recursive_syrk<trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
+        recursive_syrk<rb, trans_op>( av, uplo, trans, n2, k, alpha, a.section(index<S>(n1,0)), beta, c.section(index<S>(n1,n1)) );
     }
 }
 
@@ -191,8 +189,11 @@ void syrk(const concurrency::accelerator_view& av, enum class uplo uplo, enum cl
     const int a_col = _detail::columns<S>(a.extent);
     const int k = (trans == transpose::no_trans ? a_col : a_row);
 
+    // recursive block size
+    const int rb = 1024;
+
     // forward to recursive interface
-    _detail::recursive_syrk<trans_op>(av, uplo, trans, n, k, alpha, a, beta, c);
+    _detail::recursive_syrk<rb, trans_op>(av, uplo, trans, n, k, alpha, a, beta, c);
 }
 
 // implied noop interface

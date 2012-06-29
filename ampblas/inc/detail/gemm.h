@@ -24,153 +24,276 @@
 #include "ampblas_config.h"
 #include "ampblas_utility.h"
 
+#include "tuning/gemm.h"
+
 namespace ampblas {
 namespace _detail {
 
-// Generic GEMM algorithm on AMP array_views of type value_type
-template <int tile_size, bool guarded, enum class transpose transa, enum class transpose transb, typename scalar_type, typename a_type, typename b_type, typename c_type>
-void gemm(const concurrency::accelerator_view& av, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
-{
-    // only possibly on array_views
-    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
-    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
-    static_assert( is_array_view<c_type>::value, "c_type must be an array_view" ); 
+//
+// Execution Pipeline
+//
 
-    int k_max = (transa == transpose::no_trans ? a.extent[0] : a.extent[1]);
-
-    // configuration
-    const int n = c.extent[0];
-    const int m = c.extent[1];
-    const int tiles_m = (m+tile_size-1)/tile_size;
-    const int tiles_n = (n+tile_size-1)/tile_size;
-    auto e = make_extent(tile_size*tiles_m, tile_size*tiles_n);
-
-    concurrency::parallel_for_each(
-        av,
-        e.tile<tile_size,tile_size>(), 
-        [=] (concurrency::tiled_index<tile_size,tile_size> tid) restrict(amp)
-	{
-        // shared memory buffers
-        tile_static scalar_type a_tile[tile_size][tile_size];
-        tile_static scalar_type b_tile[tile_size][tile_size];
-
-        // constant offsets
-        const int col = tid.local[0];
-        const int row = tid.local[1];
-
-        // common memory locations
-        scalar_type& a_local = (transa == transpose::no_trans ? a_tile[row][col] : a_tile[col][row]);
-        scalar_type& b_local = (transb == transpose::no_trans ? b_tile[row][col] : b_tile[col][row]);
-
-        // tile location
-        const int j = tid.tile_origin[0];
-        const int i = tid.tile_origin[1];
-
-        scalar_type sum = scalar_type(); 
-
-        // k loop
-        for (int k=0; k<k_max; k+=tile_size)
-        {
-            auto a_idx = (transa == transpose::no_trans ? concurrency::index<2>(k+row, i+col) : concurrency::index<2>(i+row, k+col));
-            auto b_idx = (transb == transpose::no_trans ? concurrency::index<2>(j+row, k+col) : concurrency::index<2>(k+row, j+col));
-            
-            // load a & b
-            a_local = guarded_read<guarded>(a, a_idx);
-            b_local = guarded_read<guarded>(b, b_idx);
-
-            // apply transpose operations
-            if (transa == transpose::conj_trans)
-                a_local = conjugate::op(a_local);
-            if (transb == transpose::conj_trans)
-                b_local = conjugate::op(b_local);
-
-            // wait for reads
-            tid.barrier.wait_with_tile_static_memory_fence();
-
-            // intrablock accumulation
-            for (int l=0; l<tile_size; l++)
-                sum += a_tile[l][col] * b_tile[row][l];
-            
-            // wait for access 
-            tid.barrier.wait_with_tile_static_memory_fence();
-        }
-
-        // write results
-        const concurrency::index<2> c_idx(j+row, i+col);
-
-        // apply alpha & beta
-        scalar_type c_val = guarded_read<guarded>(c, c_idx);
-        c_val = alpha*sum + beta*c_val;
-
-        // final write
-        guarded_write<guarded>(c, c_idx, c_val);
-	});
-
-}
-
-// tuning framework
+// Stage 1: Refactor as row major implementation (row major can skip to stage 2)
 template <typename scalar_type, typename a_type, typename b_type, typename c_type>
 void gemm(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
 {
-    // tuning parameters
-    const int tile_size = 16;
-    const bool guarded = true;
+    // transa <==> transb
+    // a <==> b
+    gemm_stage_2(av, transb, transa, alpha, b, a, beta, c);
+}
 
-    // main routine
+// Stage 2: Hardcoded architecture as template parameter
+template <typename scalar_type, typename a_type, typename b_type, typename c_type>
+void gemm_stage_2(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
+{
+    // obtain architecture based off information in the accelerator_view
+    std::wstring desc = av.accelerator.get_description();
+    const enum class architecture arch = get_architecture(desc);
+    
+    if (arch == architecture::amd)
+    {
+        gemm_stage_3<architecture::amd>(av, transa, transb, alpha, a, b, beta, c);
+    }
+    else if (arch == architecture::nvidia)
+    {
+        gemm_stage_3<architecture::nvidia>(av, transa, transb, alpha, a, b, beta, c);
+    }
+    else
+    {
+        gemm_stage_3<architecture::unknown>(av, transa, transb, alpha, a, b, beta, c);
+    }
+}
+
+// Stage 3: Hardcoded transpose operations as template parameters
+template <enum class architecture arch, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void gemm_stage_3(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
+{
     if (transa == transpose::no_trans)
     {
         if (transb == transpose::no_trans)
         {
-            // GEMM_NN
-            _detail::gemm<tile_size, guarded, transpose::no_trans, transpose::no_trans>(av, alpha, a, b, beta, c);
+            // NN
+            gemm_stage_4<arch, transpose::no_trans, transpose::no_trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::trans)
         {
-            // GEMM_NT
-            _detail::gemm<tile_size, guarded, transpose::no_trans, transpose::trans>(av, alpha, a, b, beta, c);
+            // NT
+            gemm_stage_4<arch, transpose::no_trans, transpose::trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::conj_trans)
         {
-            // GEMM_NC
-            _detail::gemm<tile_size, guarded, transpose::no_trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
+            // NC
+            gemm_stage_4<arch, transpose::no_trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
         }
     }
     else if (transa == transpose::trans)
     {
         if (transb == transpose::no_trans)
         {
-            // GEMM_TN
-            _detail::gemm<tile_size, guarded, transpose::trans, transpose::no_trans>(av, alpha, a, b, beta, c);
+            // TN
+            gemm_stage_4<arch, transpose::trans, transpose::no_trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::trans)
         {
-            // GEMM_TT
-            _detail::gemm<tile_size, guarded, transpose::trans, transpose::trans>(av, alpha, a, b, beta, c);
+            // TT
+            gemm_stage_4<arch, transpose::trans, transpose::trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::conj_trans)
         {
-            // GEMM_TC
-            _detail::gemm<tile_size, guarded, transpose::trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
+            // TC
+            gemm_stage_4<arch, transpose::trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
         }
     }
     else if (transa == transpose::conj_trans)
     {
         if (transb == transpose::no_trans)
         {
-            // GEMM_CN
-            _detail::gemm<tile_size, guarded, transpose::conj_trans, transpose::no_trans>(av, alpha, a, b, beta, c);
+            // CN
+            gemm_stage_4<arch, transpose::conj_trans, transpose::no_trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::trans)
         {
-            // GEMM_CT
-            _detail::gemm<tile_size, guarded, transpose::conj_trans, transpose::trans>(av, alpha, a, b, beta, c);
+            // CT
+            gemm_stage_4<arch, transpose::conj_trans, transpose::trans>(av, alpha, a, b, beta, c);
         }
         else if (transb == transpose::conj_trans)
         {
-            // GEMM_CC
-            _detail::gemm<tile_size, guarded, transpose::conj_trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
+            // CC
+            gemm_stage_4<arch, transpose::conj_trans, transpose::conj_trans>(av, alpha, a, b, beta, c);
         }
     }
+}
+
+// Stage 4: find tuning parameters, check if we need an IO guard, and finally pass to the kernel!
+template <enum class architecture arch, enum class transpose transa, enum class transpose transb, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void gemm_stage_4(const concurrency::accelerator_view& av, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)  
+{ 
+    // alias to all important tuning parameters
+    typedef gemm_tuning_parameters<arch, scalar_type, transa, transb> tp;
+
+    // row major
+    const int m = c.extent[0];  
+    const int n = c.extent[1];
+    const int k = (transa != transpose::no_trans ? a.extent[0] : a.extent[1]); 
+
+    if (tp::m_block % m || tp::n_block % n || tp::k_block % k) 
+    {
+        // one or more dimensions doesn't align with work block size, must use IO guards
+        const bool guarded = true;
+        gemm_kernel<guarded, transa, transb, tp::m_block, tp::n_block, tp::k_block, tp::m_c_tile, tp::n_c_tile, tp::m_a_tile, tp::n_a_tile, tp::m_b_tile, tp::n_b_tile, tp::use_padding>(av, alpha, a, b, beta, c);
+    }
+    else
+    {
+        // all dimensions align; safe to skip bounds checks
+        const bool guarded = false;
+        gemm_kernel<guarded, transa, transb, tp::m_block, tp::n_block, tp::k_block, tp::m_c_tile, tp::n_c_tile, tp::m_a_tile, tp::n_a_tile, tp::m_b_tile, tp::n_b_tile, tp::use_padding>(av, alpha, a, b, beta, c);
+    }
+}
+
+// Stage 5: Highly parameterized GEMM
+template <bool guarded, enum class transpose transa, enum class transpose transb, int m_block, int n_block, int k_block, int m_c_tile, int n_c_tile, int m_a_tile, int n_a_tile, int m_b_tile, int n_b_tile, int use_padding, typename scalar_type, typename a_type, typename b_type, typename c_type>
+void gemm_kernel(const concurrency::accelerator_view& av, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
+{
+    // only possibly on array_views
+    static_assert( is_array_view<a_type>::value, "a_type must be an array_view" ); 
+    static_assert( is_array_view<b_type>::value, "b_type must be an array_view" ); 
+    static_assert( is_array_view<c_type>::value, "c_type must be an array_view" ); 
+
+    // static checks for block usage
+    static_assert( m_block % (transa == transpose::no_trans ? m_a_tile : n_a_tile) == 0, "static tuning error: a tile must evenly divide into [m x k] work block");
+    static_assert( k_block % (transa == transpose::no_trans ? n_a_tile : m_a_tile) == 0, "static tuning error: a tile must evenly divide into [m x k] work block");
+    static_assert( k_block % (transb == transpose::no_trans ? m_b_tile : n_b_tile) == 0, "static tuning error: b tile must evenly divide into [k x n] work block");
+    static_assert( n_block % (transb == transpose::no_trans ? n_b_tile : m_b_tile) == 0, "static tuning error: b tile must evenly divide into [k x n] work block");
+    static_assert( m_block % m_c_tile == 0, "static tuning error: c tile must evenly divide into [m x n] work block");
+    static_assert( n_block % n_c_tile == 0, "static tuning error: c tile must evenly divide into [m x n] work block");
+
+    // derived tuning parameters
+    static const int m_thread = m_block / m_c_tile;
+    static const int n_thread = n_block / n_c_tile;
+
+    // row major!
+    const int M = c.extent[0];  
+    const int N = c.extent[1];
+    const int K = (transa != transpose::no_trans ? a.extent[0] : a.extent[1]); 
+
+    // build extent
+    const int m_extent = ((M + (m_block-1)) / m_block) * m_c_tile;
+    const int n_extent = ((N + (n_block-1)) / n_block) * n_c_tile;
+    concurrency::extent<2> extent(m_extent, n_extent);
+
+    concurrency::parallel_for_each(
+        av,
+        extent.tile<m_c_tile, n_c_tile>(), 
+        [=] (concurrency::tiled_index<m_c_tile, n_c_tile> tid) restrict(amp)
+    {
+        // shared memory padding to (potentially) reduce bank conflicts 
+        const int a_padding = (use_padding && transa != transpose::no_trans ? 1 : 0);
+        const int b_padding = (use_padding && transb != transpose::no_trans ? 1 : 0);
+
+        // shared tile memory
+		tile_static scalar_type a_tile[m_block][k_block + a_padding];
+		tile_static scalar_type b_tile[k_block][n_block + b_padding];
+
+        // global tile offset indexing
+		const int i = tid.tile[0] * m_block;    
+		const int j = tid.tile[1] * n_block;
+
+        // local c indexing [m_c_tile x n_c_tile]
+		const int i_c_idx = tid.local[0];
+		const int j_c_idx = tid.local[1]; 
+
+        // 1D index 
+        // TODO: is there a built in way to 
+        const int idx = i_c_idx * n_c_tile + j_c_idx;    
+
+        // local a index [m_a_tile x n_a_tile]
+        const int i_a_idx = idx / n_a_tile;
+        const int j_a_idx = idx % n_a_tile;
+
+        // local b index [m_b_tile x n_b_tile]
+        const int i_b_idx = idx / n_b_tile;
+        const int j_b_idx = idx % n_b_tile; 
+
+        // local computation registers
+        scalar_type c_reg[m_thread][n_thread]; 
+        scalar_type a_reg[m_thread];
+        scalar_type b_reg[n_thread];
+
+        // zero out the sumation registers
+        for (int m = 0; m < m_thread; m++)
+            for (int n = 0; n < n_thread; n++)
+                c_reg[m][n] = scalar_type();
+
+        // outer k-loop
+        for (int ko = 0; ko < K; ko += k_block)
+        {
+            // read a [m_block x k_block] into shared memory using tile [m_a_tile x n_a_tile]
+            if (transa == transpose::no_trans)
+            {
+                for (int m = 0; m < m_block; m += m_a_tile)
+                    for (int n = 0; n < k_block; n += n_a_tile)
+                        a_tile[m+i_a_idx][n+j_a_idx] = guarded_read<guarded>(a, concurrency::index<2>(i+m+i_a_idx, ko+n+j_a_idx)); 
+            }
+            else
+            {
+                for (int n = 0; n < m_block; n += n_a_tile)
+                    for (int m = 0; m < k_block; m += m_a_tile)
+                        a_tile[n+j_a_idx][m+i_a_idx] = guarded_read<guarded>(a, concurrency::index<2>(ko+m+i_a_idx, i+n+j_a_idx));
+            }
+
+            // read b [k_block x n_block] into shared memory using tile [m_b_tile x n_b_tile]
+            if (transb == transpose::no_trans)
+            {
+			    for (int m = 0; m < k_block; m += m_b_tile)
+				    for (int n = 0; n < n_block; n += n_b_tile)
+					    b_tile[m+i_b_idx][n+j_b_idx] = guarded_read<guarded>(b, concurrency::index<2>(ko+m+i_b_idx, j+n+j_b_idx));
+            }
+            else
+            {
+                for (int n = 0; n < k_block; n += n_b_tile)
+                    for (int m = 0; m < n_block; m += m_b_tile)
+                        b_tile[n+j_b_idx][m+i_b_idx] = guarded_read<guarded>(b, concurrency::index<2>(j+m+i_b_idx, ko+n+j_b_idx));
+            }
+
+            // wait for tiled static memory to fill
+            tid.barrier.wait_with_tile_static_memory_fence();
+
+            // inner k-loop
+            for (int ki = 0; ki < k_block; ki++)
+            {
+                // load a registers
+                for (int m = 0; m < m_thread; m++)
+                    a_reg[m] = a_tile[m*m_c_tile+i_c_idx][ki];
+                
+                // load b registers
+                for (int n = 0; n < n_thread; n++)
+                    b_reg[n] = b_tile[ki][n*n_c_tile+j_c_idx];
+                
+                // accumulate into c registers
+                for (int m = 0; m < m_thread; m++)
+                    for (int n = 0; n < n_thread; n++)
+                        c_reg[m][n] += (transa == transpose::conj_trans ? conjugate::op(a_reg[m]) : a_reg[m]) * (transb == transpose::conj_trans ? conjugate::op(b_reg[n]) : b_reg[n]);
+            }
+
+            // wait for tiled static memory to be consumed
+            tid.barrier.wait_with_tile_static_memory_fence();
+        
+        } // outer k-loop
+
+        // write registers to c
+		for (int m = 0; m < m_thread; m++)
+		{
+			const int m_out = i + (m*m_c_tile+i_c_idx); 
+			for (int n = 0; n < n_thread; n++)
+			{
+				const int n_out = j + (n*n_c_tile+j_c_idx);
+
+                scalar_type c_temp = guarded_read<guarded>(c, concurrency::index<2>(m_out, n_out));
+				c_temp = alpha*c_reg[m][n] + beta*c_temp;
+                guarded_write<guarded>(c, concurrency::index<2>(m_out, n_out), c_temp);
+			}
+		}
+    });
 }
 
 } // namespace _detail
@@ -179,7 +302,7 @@ void gemm(const concurrency::accelerator_view& av, enum class transpose transa, 
 template <typename scalar_type, typename a_type, typename b_type, typename c_type>
 void gemm(const concurrency::accelerator_view& av, enum class transpose transa, enum class transpose transb, scalar_type alpha, const a_type& a, const b_type& b, scalar_type beta, const c_type& c)
 {
-    // pass to tuning function
+    // pass to tuning pipeline
     _detail::gemm(av, transa, transb, alpha, a, b, beta, c);
 }
 

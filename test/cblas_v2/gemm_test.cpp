@@ -139,19 +139,16 @@ public:
         transb.push_back(AmpblasConjTrans);
 
 		std::vector<int> m;
-        m.push_back(16);
-        m.push_back(37);
-        m.push_back(64);
+        m.push_back(20);
+        m.push_back(128);
 
         std::vector<int> n;
-        n.push_back(16);
-        n.push_back(37);
-        n.push_back(64);
+        n.push_back(20);
+        n.push_back(128);
 
 		std::vector<int> k;
-        k.push_back(16);
-        k.push_back(37);
-        k.push_back(64);
+        k.push_back(20);
+        k.push_back(128);
 
         std::vector<value_type> alpha;
         alpha.push_back( value_type(1) );

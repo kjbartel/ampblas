@@ -216,6 +216,12 @@
     <ClInclude Include="inc\detail\trmv.h" />
     <ClInclude Include="inc\detail\trsm.h" />
     <ClInclude Include="inc\detail\trsv.h" />
+    <ClInclude Include="inc\detail\tuning\cgemm.h" />
+    <ClInclude Include="inc\detail\tuning\dgemm.h" />
+    <ClInclude Include="inc\detail\tuning\gemm.h" />
+    <ClInclude Include="inc\detail\tuning\sgemm.h" />
+    <ClInclude Include="inc\detail\tuning\tune.h" />
+    <ClInclude Include="inc\detail\tuning\zgemm.h" />
     <ClInclude Include="inc\utility\adapter.h" />
     <ClInclude Include="inc\utility\algorithm.h" />
     <ClInclude Include="inc\utility\complex.h" />

@@ -163,7 +163,7 @@ private:
     virtual void run_cblas_test( const typed_parameters& p ) = 0;
 
     // level of accuracy; override for routine if required
-    virtual real_type fudge_factor() const { return real_type(10); }
+    virtual real_type fudge_factor() const { return real_type(64); }
 
 	virtual bool is_double() const
 	{
