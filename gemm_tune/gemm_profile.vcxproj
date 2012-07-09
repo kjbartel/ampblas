@@ -153,7 +153,7 @@
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\inc\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\inc</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -184,7 +184,7 @@
       </EnableEnhancedInstructionSet>
       <FloatingPointModel>Fast</FloatingPointModel>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\inc</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -211,7 +211,7 @@
       <SDLCheck>true</SDLCheck>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\inc</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
     </ClCompile>
     <Link>
@@ -241,7 +241,7 @@
       <EnableEnhancedInstructionSet>
       </EnableEnhancedInstructionSet>
       <OpenMPSupport>false</OpenMPSupport>
-      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)\inc;..\ampblas\inc</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4505</DisableSpecificWarnings>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
